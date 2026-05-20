@@ -17,50 +17,50 @@ const pages: NavItemType = {
   title: 'pages',
   type: 'group',
   children: [
-    {
-      id: 'maintenance',
-      title: 'maintenance',
-      type: 'collapse',
-      icon: icons.RocketOutlined,
-      isDropdown: true,
-      children: [
-        {
-          id: 'error-404',
-          title: 'error-404',
-          type: 'item',
-          url: '/maintenance/404',
-          target: true
-        },
-        {
-          id: 'error-500',
-          title: 'error-500',
-          type: 'item',
-          url: '/maintenance/500',
-          target: true
-        },
-        {
-          id: 'coming-soon',
-          title: 'coming-soon',
-          type: 'item',
-          url: '/maintenance/coming-soon',
-          target: true
-        },
-        {
-          id: 'under-construction',
-          title: 'under-construction',
-          type: 'item',
-          url: '/maintenance/under-construction',
-          target: true
-        }
-      ]
-    },
+    // {
+    //   id: 'maintenance',
+    //   title: 'maintenance',
+    //   type: 'collapse',
+    //   icon: icons.RocketOutlined,
+    //   isDropdown: true,
+    //   children: [
+    //     {
+    //       id: 'error-404',
+    //       title: 'error-404',
+    //       type: 'item',
+    //       url: '/maintenance/404',
+    //       target: true
+    //     },
+    //     {
+    //       id: 'error-500',
+    //       title: 'error-500',
+    //       type: 'item',
+    //       url: '/maintenance/500',
+    //       target: true
+    //     },
+    //     {
+    //       id: 'coming-soon',
+    //       title: 'coming-soon',
+    //       type: 'item',
+    //       url: '/maintenance/coming-soon',
+    //       target: true
+    //     },
+    //     {
+    //       id: 'under-construction',
+    //       title: 'under-construction',
+    //       type: 'item',
+    //       url: '/maintenance/under-construction',
+    //       target: true
+    //     }
+    //   ]
+    // },
     {
       id: 'contact-us',
-      title: 'contact-us',
+      title: 'form',
       type: 'item',
-      url: '/contact-us',
-      icon: icons.PhoneOutlined,
-      target: true
+      url: '/form',
+      icon: icons.RocketOutlined,
+      target: false
     }
   ]
 };

@@ -114,7 +114,8 @@ export const searchData: SearchDataType = [
     id: 'pages',
     title: 'Pages',
     childs: [
-      { id: 'page-sample', title: 'Sample Page', icon: <ChromeOutlined />, path: '/sample-page' },
+      // { id: 'page-sample', title: 'Sample Page', icon: <ChromeOutlined />, path: '/sample-page' },
+      { id: 'page-sample', title: 'chat', icon: <ChromeOutlined />, path: '/chat' },
       { id: 'page-change-log', title: 'Change Log', icon: <QuestionCircleOutlined />, path: '#!', isExternal: true },
       { id: 'page-contact-us', title: 'Contact US', icon: <PhoneOutlined />, path: '/contact-us', isExternal: true },
       { id: 'page-faqs', title: 'Faqs', icon: <QuestionCircleOutlined />, path: '#!', isExternal: true },

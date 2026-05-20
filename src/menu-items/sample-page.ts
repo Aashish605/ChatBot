@@ -13,9 +13,9 @@ const icons = { ChromeOutlined };
 
 const samplePage: NavItemType = {
   id: 'sample-page',
-  title: 'sample-page',
+  title: 'chat',
   type: 'group',
-  url: '/sample-page',
+  url: '/chat',
   icon: icons.ChromeOutlined
 };
 

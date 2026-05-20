@@ -11,10 +11,10 @@ import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 
 // project imports
-import AuthFooter from 'components/cards/AuthFooter';
+// import AuthFooter from 'components/cards/AuthFooter';
 import Logo from 'components/logo';
 import AuthCard from './AuthCard';
-import LoginProvider from './LoginProvider';
+// import LoginProvider from './LoginProvider';
 
 import useAuth from 'hooks/useAuth';
 
@@ -87,18 +87,18 @@ export default function AuthWrapper({ children }: Props) {
                 <Box sx={{ maxWidth: { xs: 400, sm: 475 }, margin: { xs: 2.5, md: 3 }, '& > *': { flexGrow: 1, flexBasis: '50%' } }}>
                   <Grid size={12}>
                     <Divider sx={{ mb: 3 }}>
-                      <Typography variant="caption"> Check other login views </Typography>
+                      {/* <Typography variant="caption"> Check other login views </Typography> */}
                     </Divider>
                   </Grid>
                   <Grid size={12}>
-                    <LoginProvider currentLoginWith={authParam} />
+                    {/* <LoginProvider currentLoginWith={authParam} /> */}
                   </Grid>
                 </Box>
               )}
             </Grid>
           </Grid>
         </Box>
-        <AuthFooter />
+        {/* <AuthFooter /> */}
       </Stack>
     </Box>
   );
