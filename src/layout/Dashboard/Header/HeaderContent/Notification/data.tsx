@@ -1,0 +1,180 @@
+// material-ui
+import { AlertProps } from '@mui/material/Alert';
+import Button, { ButtonProps } from '@mui/material/Button';
+
+// assets
+import figma from 'assets/images/icons/landing-figma.svg';
+
+export interface Notification {
+  id: string;
+  type: 'mention' | 'join_event' | 'request' | 'file_upload' | 'reply' | 'task_completion' | 'invitation' | 'system_alert';
+  user: {
+    name: string;
+    avatar: string;
+  } | null;
+  message: string;
+  time: string;
+  read: boolean;
+  context?: string;
+  file?: {
+    name: string;
+    size: string;
+    icon: string;
+  };
+  reply_content?: string;
+  actions?: (
+    | string
+    | {
+        type: 'button';
+        buttonProps: ButtonProps;
+        action_id: string;
+      }
+    | {
+        type: 'alert';
+        alertProps: AlertProps;
+        action_id: string;
+      }
+  )[];
+}
+
+export const notificationFilterOptions = [
+  { key: 'all', label: 'All' },
+  { key: 'unread', label: 'Unread' },
+  { key: 'mentions', label: 'Mentions' }
+] as Array<{ key: 'all' | 'unread' | 'mentions'; label: string }>;
+
+// mock notification data
+export const notificationData: Notification[] = [
+  {
+    id: 'notification-1',
+    type: 'mention',
+    user: {
+      name: 'Cristina Danny',
+      avatar: 'avatar-1.png'
+    },
+    message: 'mentioned you in',
+    time: '12 min ago',
+    context: 'Project',
+    read: true
+  },
+  {
+    id: 'notification-2',
+    type: 'join_event',
+    user: {
+      name: 'Aida Burg',
+      avatar: 'avatar-2.png'
+    },
+    message: 'joined to 🔥 Final Presentation',
+    time: '2h ago',
+    context: 'Social Media Plan',
+    read: false
+  },
+  {
+    id: 'notification-3',
+    type: 'request',
+    user: {
+      name: 'Jenny Willson',
+      avatar: 'avatar-1.jpg'
+    },
+    message: 'is requesting to Upgrade Plan',
+    time: '5h ago',
+    context: 'Pricing Plan',
+    read: true,
+    actions: [
+      {
+        type: 'button',
+        action_id: 'accept_upgrade',
+        buttonProps: {
+          variant: 'contained',
+          color: 'primary',
+          size: 'small',
+          children: 'Accept'
+        }
+      },
+      {
+        type: 'button',
+        action_id: 'decline_upgrade',
+        buttonProps: {
+          variant: 'outlined',
+          color: 'secondary',
+          size: 'small',
+          children: 'Decline'
+        }
+      }
+    ]
+  },
+  {
+    id: 'notification-4',
+    type: 'file_upload',
+    user: {
+      name: 'Robert Fox',
+      avatar: 'avatar-3.png'
+    },
+    message: 'upload a file',
+    time: '1d ago',
+    read: false,
+    file: {
+      name: 'mantis_dashboard.fig',
+      size: '26mb',
+      icon: figma
+    }
+  },
+  {
+    id: 'notification-5',
+    type: 'reply',
+    user: {
+      name: 'Emily',
+      avatar: 'avatar-5.png'
+    },
+    message: 'sent you reply',
+    time: '1d ago',
+    read: true,
+    actions: [
+      {
+        type: 'alert',
+        action_id: 'reply_to_emily',
+        alertProps: {
+          variant: 'border',
+          color: 'secondary',
+          children: 'We have scheduled a meeting for next week.',
+          icon: false,
+          action: <Button variant="contained">Replay</Button>,
+          sx: { px: 1.75, py: 0.75, fontSize: '12px' }
+        }
+      }
+    ]
+  },
+  {
+    id: 'notification-6',
+    type: 'task_completion',
+    user: {
+      name: 'Annete Black',
+      avatar: 'avatar-a.png'
+    },
+    message: 'completed Create new component',
+    time: '2d ago',
+    read: true
+  },
+  {
+    id: 'notification-7',
+    type: 'invitation',
+    user: {
+      name: 'Ian Dooley',
+      avatar: 'avatar-7.png'
+    },
+    message: 'invited to you join Meeting',
+    time: '4d ago',
+    read: true
+  },
+  {
+    id: 'notification-8',
+    type: 'system_alert',
+    user: {
+      name: 'Cat central',
+      avatar: 'avatar-a.png'
+    },
+    message: 'There was a failure to your setup',
+    time: '4d ago',
+    read: true
+  }
+];
