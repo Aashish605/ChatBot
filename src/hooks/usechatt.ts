@@ -1,20 +1,22 @@
-import { useState } from 'react';
+/* eslint-disable prettier/prettier */
+import { useState } from "react";
 
-import { Message } from 'types/chatt';
+import { Message } from "types/chatt";
 
-import { sendChatMessage } from 'api/chatt';
+// eslint-disable-next-line prettier/prettier
+import { sendChatMessage , assignAgent } from 'api/chatt';
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: 'Hello 👋 How can I help you today?',
-      sender: 'other',
+      text: "Hello 👋 How can I help you today?",
+      sender: "other",
       time: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    },
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -26,11 +28,11 @@ export function useChat() {
     const userMessage: Message = {
       id: Date.now(),
       text,
-      sender: 'me',
+      sender: "me",
       time: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -42,33 +44,41 @@ export function useChat() {
       const sessionId = crypto.randomUUID();
 
       // AI RESPONSE
-      const aiResponse = await sendChatMessage({
+      const Response = await sendChatMessage({
         sessionId,
-        question: text
+        question: text,
       });
+
+      const[aiResponse,chatMessage_id] = Response;
+      console.log("chatMessage_id", chatMessage_id);
+
+      if(!aiResponse){
+        await assignAgent(chatMessage_id);
+      }
 
       const botMessage: Message = {
         id: Date.now() + 1,
-        text: aiResponse || 'No response generated.',
-        sender: 'other',
+        text: aiResponse || "No response generated.",
+        sender: "other",
         time: new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
 
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
+      await assignAgent();
       console.error(error);
 
       const errorMessage: Message = {
         id: Date.now() + 2,
-        text: 'Something went wrong.',
-        sender: 'other',
+        text: "Sorry, there was an error. A support agent will get back to you shortly.",
+        sender: "other",
         time: new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
 
       setMessages((prev) => [...prev, errorMessage]);
@@ -80,6 +90,6 @@ export function useChat() {
   return {
     messages,
     loading,
-    sendMessage
+    sendMessage,
   };
 }
