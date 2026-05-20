@@ -127,7 +127,6 @@ const DEFAULT_VALUES: KnowledgeBaseFormData = {
   tags: "",
   keywords: "",
   common_user_phrases: "",
-  // FIX: Start with one empty step so the section is always visible
   steps: [{ text: "" }],
   priority: 5,
   visibility: "public",
@@ -149,7 +148,6 @@ export default function KnowledgeBaseForm() {
 
   /* ───────────────── FIELD ARRAY ───────────────── */
 
-  // FIX: useFieldArray correctly wired to `steps`
   const { fields, append, remove } = useFieldArray({
     control,
     name: "steps",
@@ -194,299 +192,325 @@ export default function KnowledgeBaseForm() {
         width: "100%",
         display: "flex",
         justifyContent: "center",
-        px: 2,
+        px: { xs: 1, sm: 2, md: 3 },
         py: 2,
       }}
     >
-      <MainCard title="Knowledge Base" sx={{ width: "100%", maxWidth: 950 }}>
+      <MainCard title="Knowledge Base" sx={{ width: "100%", maxWidth: 1400 }}>
         <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-          <Stack spacing={3}>
-            {/* ALERTS */}
+          {/* ALERTS */}
+          <Stack spacing={2} mb={3}>
             {saved && (
               <Alert severity="success">
                 Knowledge Base saved successfully!
               </Alert>
             )}
             {submitError && <Alert severity="error">{submitError}</Alert>}
+          </Stack>
 
-            {/* ───────────────── ENTRY TYPE ───────────────── */}
-
-            <SectionCard title="Entry Type" icon="📚" defaultExpanded>
-              {/*
-                FIX: Controller correctly passes field.onChange to TypeSelector.
-                Previously, onChange was ignored — the render prop exposed `field`
-                but the component only received `value` without a wired onChange.
-              */}
-              <Controller
-                name="type"
-                control={control}
-                rules={{ required: "Please select a type" }}
-                render={({ field, fieldState }) => (
-                  <TypeSelector
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={fieldState.error?.message}
-                  />
-                )}
-              />
-            </SectionCard>
-
-            {/* ───────────────── CORE INFO ───────────────── */}
-
-            <SectionCard title="Core Information" icon="📄" defaultExpanded>
-              <Grid container spacing={3}>
-                <Grid size={12}>
-                  <TextField
-                    fullWidth
-                    label="Title"
-                    error={!!errors.title}
-                    helperText={errors.title?.message}
-                    {...register("title", { required: "Title is required" })}
-                  />
-                </Grid>
-
-                <Grid size={12}>
-                  {/*
-                    FIX: Category uses Controller to avoid uncontrolled TextField select issue.
-                    Native register() on a `select` TextField can cause blank display bugs.
-                  */}
+          {/*
+            ── OUTER 8 / 4 GRID ──────────────────────────────────────────
+            xs (< 600 px)   → both columns full-width (stacked)
+            sm (600–899 px) → still stacked (form is dense; sidebar below)
+            md (900 px +)   → left=8, right=4 side-by-side
+          */}
+          <Grid container spacing={3} alignItems="flex-start">
+            {/* ── LEFT COLUMN: main form sections (8 cols on md+) ── */}
+            <Grid size={{ xs: 12, md: 8 }}>
+              <Stack spacing={3}>
+                {/* ───────────────── ENTRY TYPE ───────────────── */}
+                <SectionCard title="Entry Type" icon="📚" defaultExpanded>
                   <Controller
-                    name="category"
+                    name="type"
                     control={control}
-                    render={({ field }) => (
-                      <TextField select fullWidth label="Category" {...field}>
-                        <MenuItem value="">
-                          <em>Select a category</em>
-                        </MenuItem>
-                        {CATEGORIES.map((category) => (
-                          <MenuItem
-                            key={category}
-                            value={category.toLowerCase()}
-                          >
-                            {category}
-                          </MenuItem>
-                        ))}
-                      </TextField>
+                    rules={{ required: "Please select a type" }}
+                    render={({ field, fieldState }) => (
+                      <TypeSelector
+                        value={field.value}
+                        onChange={field.onChange}
+                        error={fieldState.error?.message}
+                      />
                     )}
                   />
-                </Grid>
+                </SectionCard>
 
-                <Grid size={12}>
-                  <TextField
-                    fullWidth
-                    label="Question"
-                    {...register("question")}
-                  />
-                </Grid>
+                {/* ───────────────── CORE INFO ───────────────── */}
+                <SectionCard title="Core Information" icon="📄">
+                  <Grid container spacing={3}>
+                    <Grid size={12}>
+                      <TextField
+                        fullWidth
+                        label="Title"
+                        error={!!errors.title}
+                        helperText={errors.title?.message}
+                        {...register("title", {
+                          required: "Title is required",
+                        })}
+                      />
+                    </Grid>
 
-                <Grid size={12}>
-                  <TextField
-                    fullWidth
-                    label="Short Answer"
-                    {...register("answer")}
-                  />
-                </Grid>
+                    <Grid size={12}>
+                      <Controller
+                        name="category"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            select
+                            fullWidth
+                            label="Category"
+                            id="category"
+                            inputProps={{ id: "category", name: "category" }}
+                            {...field}
+                          >
+                            <MenuItem value="">
+                              <em>Select a category</em>
+                            </MenuItem>
+                            {CATEGORIES.map((category) => (
+                              <MenuItem
+                                key={category}
+                                value={category.toLowerCase()}
+                              >
+                                {category}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        )}
+                      />
+                    </Grid>
 
-                <Grid size={12}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    minRows={6}
-                    label="Full Content"
-                    {...register("content")}
-                  />
-                </Grid>
-              </Grid>
-            </SectionCard>
+                    <Grid size={12}>
+                      <TextField
+                        fullWidth
+                        label="Question"
+                        {...register("question")}
+                      />
+                    </Grid>
 
-            {/* ───────────────── METADATA ───────────────── */}
+                    <Grid size={12}>
+                      <TextField
+                        fullWidth
+                        label="Short Answer"
+                        {...register("answer")}
+                      />
+                    </Grid>
 
-            <SectionCard title="Metadata & Discoverability" icon="🏷️">
-              <Stack spacing={3}>
-                <TextField
-                  fullWidth
-                  label="Tags"
-                  helperText="Comma separated (e.g. refund, billing, payment)"
-                  {...register("tags")}
-                />
+                    <Grid size={12}>
+                      <TextField
+                        fullWidth
+                        multiline
+                        minRows={6}
+                        label="Full Content"
+                        {...register("content")}
+                      />
+                    </Grid>
+                  </Grid>
+                </SectionCard>
 
-                <TextField
-                  fullWidth
-                  label="Keywords"
-                  helperText="Comma separated"
-                  {...register("keywords")}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Common User Phrases"
-                  helperText='How users ask this (e.g. "how do I cancel", "refund policy")'
-                  {...register("common_user_phrases")}
-                />
-              </Stack>
-            </SectionCard>
-
-            {/* ───────────────── STEP BUILDER ───────────────── */}
-
-            <SectionCard title="Step-by-step Guide" icon="📋" defaultExpanded>
-              <Box
-                sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
-              >
-                {fields.length === 0 && (
-                  <Typography variant="body2" color="text.secondary">
-                    No steps added yet. Click "Add Step" to begin building your
-                    guide.
-                  </Typography>
-                )}
-
-                {fields.map((field, index) => (
-                  <Paper
-                    key={field.id}
-                    elevation={0}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 2,
-                      p: 2,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 2,
-                      backgroundColor: "background.paper",
-                    }}
-                  >
-                    {/* STEP NUMBER */}
-                    <Box
-                      sx={{
-                        minWidth: 36,
-                        width: 36,
-                        height: 36,
-                        borderRadius: "50%",
-                        bgcolor: "primary.main",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: 700,
-                        fontSize: 14,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {index + 1}
-                    </Box>
-
-                    {/* STEP INPUT
-                      FIX: register path uses template literal correctly.
-                      Each step is an object { text: string }, so we bind to
-                      `steps.${index}.text` — this is what gets saved to Supabase.
-                    */}
+                {/* ───────────────── METADATA ───────────────── */}
+                <SectionCard title="Metadata & Discoverability" icon="🏷️">
+                  <Stack spacing={3}>
                     <TextField
                       fullWidth
-                      placeholder={`Describe step ${index + 1}…`}
-                      {...register(`steps.${index}.text` as const)}
+                      label="Tags"
+                      helperText="Comma separated (e.g. refund, billing, payment)"
+                      {...register("tags")}
                     />
 
-                    {/* DELETE — prevent removing the last step */}
-                    <IconButton
-                      color="error"
-                      onClick={() => remove(index)}
-                      disabled={fields.length === 1}
-                      title={
-                        fields.length === 1
-                          ? "At least one step is required"
-                          : "Remove step"
-                      }
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Paper>
-                ))}
-
-                {/* ADD STEP */}
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={() => append({ text: "" })}
-                  sx={{ alignSelf: "flex-start" }}
-                >
-                  Add Step
-                </Button>
-              </Box>
-            </SectionCard>
-
-            {/* ───────────────── SETTINGS ───────────────── */}
-
-            <SectionCard title="Publishing Settings" icon="⚙️">
-              <Stack spacing={4}>
-                {/*
-                  FIX: Visibility uses Controller to prevent the
-                  controlled/uncontrolled conflict from mixing `value={watch()}`
-                  with `{...register(...)}` on the same element.
-                */}
-                <Controller
-                  name="visibility"
-                  control={control}
-                  render={({ field }) => (
                     <TextField
-                      select
-                      label="Visibility"
-                      {...field}
-                      sx={{ maxWidth: 200 }}
-                    >
-                      <MenuItem value="public">Public</MenuItem>
-                      <MenuItem value="private">Private</MenuItem>
-                    </TextField>
-                  )}
-                />
-
-                <Box>
-                  <Typography gutterBottom>
-                    Priority — <strong>{priority}</strong>
-                  </Typography>
-
-                  <Slider
-                    value={priority}
-                    min={0}
-                    max={10}
-                    step={1}
-                    marks
-                    valueLabelDisplay="auto"
-                    onChange={(_, value) =>
-                      setValue("priority", value as number)
-                    }
-                    sx={{ maxWidth: 400 }}
-                  />
-                </Box>
-
-                {/* FIX: is_active now has a UI control so it isn't undefined on submit */}
-                <Controller
-                  name="is_active"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={field.value}
-                          onChange={(e) => field.onChange(e.target.checked)}
-                        />
-                      }
-                      label="Active (visible to users)"
+                      fullWidth
+                      label="Keywords"
+                      helperText="Comma separated"
+                      {...register("keywords")}
                     />
-                  )}
-                />
+
+                    <TextField
+                      fullWidth
+                      label="Common User Phrases"
+                      helperText='How users ask this (e.g. "how do I cancel", "refund policy")'
+                      {...register("common_user_phrases")}
+                    />
+                  </Stack>
+                </SectionCard>
               </Stack>
-            </SectionCard>
+            </Grid>
 
-            {/* ───────────────── SUBMIT ───────────────── */}
-
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              disabled={isSubmitting}
+            {/* ── RIGHT COLUMN: publishing settings + submit (4 cols on md+) ── */}
+            <Grid
+              size={{ xs: 12, md: 4 }}
+              sx={{
+                /*
+                  Sticky sidebar on md+.
+                  top offset accounts for any fixed app-bar height; adjust
+                  the value (e.g. 80px) to match your layout.
+                */
+                position: { md: "sticky" },
+                top: { md: "80px" },
+                alignSelf: { md: "flex-start" },
+              }}
             >
-              {isSubmitting ? "Saving…" : "Save Knowledge Base"}
-            </Button>
-          </Stack>
+              <Stack spacing={3}>
+                {/* ───────────────── STEP BUILDER ───────────────── */}
+                <SectionCard title="Step-by-step Guide" icon="📋">
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                      mt: 1,
+                    }}
+                  >
+                    {fields.length === 0 && (
+                      <Typography variant="body2" color="text.secondary">
+                        No steps added yet. Click "Add Step" to begin building
+                        your guide.
+                      </Typography>
+                    )}
+
+                    {fields.map((field, index) => (
+                      <Paper
+                        key={field.id}
+                        elevation={0}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          p: 2,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          borderRadius: 2,
+                          backgroundColor: "background.paper",
+                        }}
+                      >
+                        {/* STEP NUMBER */}
+                        <Box
+                          sx={{
+                            minWidth: 36,
+                            width: 36,
+                            height: 36,
+                            borderRadius: "50%",
+                            bgcolor: "primary.main",
+                            color: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: 700,
+                            fontSize: 14,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {index + 1}
+                        </Box>
+
+                        <TextField
+                          fullWidth
+                          placeholder={`Describe step ${index + 1}…`}
+                          {...register(`steps.${index}.text` as const)}
+                        />
+
+                        <IconButton
+                          color="error"
+                          onClick={() => remove(index)}
+                          disabled={fields.length === 1}
+                          title={
+                            fields.length === 1
+                              ? "At least one step is required"
+                              : "Remove step"
+                          }
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Paper>
+                    ))}
+
+                    <Button
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={() => append({ text: "" })}
+                      sx={{ alignSelf: "flex-start" }}
+                    >
+                      Add Step
+                    </Button>
+                  </Box>
+                </SectionCard>
+
+                {/* ───────────────── SETTINGS ───────────────── */}
+                <SectionCard
+                  title="Publishing Settings"
+                  icon="⚙️"
+                  defaultExpanded
+                >
+                  <Stack spacing={4}>
+                    <Controller
+                      name="visibility"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          select
+                          label="Visibility"
+                          fullWidth
+                          id="visibility"
+                          inputProps={{ id: "visibility", name: "visibility" }}
+                          {...field}
+                        >
+                          <MenuItem value="public">Public</MenuItem>
+                          <MenuItem value="private">Private</MenuItem>
+                        </TextField>
+                      )}
+                    />
+
+                    <Box>
+                      <Typography gutterBottom>
+                        Priority — <strong>{priority}</strong>
+                      </Typography>
+
+                      <Slider
+                        value={priority}
+                        min={0}
+                        max={10}
+                        step={1}
+                        marks
+                        valueLabelDisplay="auto"
+                        name="priority"
+                        id="priority"
+                        onChange={(_, value) =>
+                          setValue("priority", value as number)
+                        }
+                      />
+                    </Box>
+
+                    <Controller
+                      name="is_active"
+                      control={control}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              id="is_active"
+                              name="is_active"
+                              checked={field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                            />
+                          }
+                          label="Active (visible to users)"
+                        />
+                      )}
+                    />
+                  </Stack>
+                </SectionCard>
+
+                {/* ───────────────── SUBMIT ───────────────── */}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving…" : "Save Knowledge Base"}
+                </Button>
+              </Stack>
+            </Grid>
+          </Grid>
         </Box>
       </MainCard>
     </Box>

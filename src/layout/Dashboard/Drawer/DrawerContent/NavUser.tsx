@@ -116,9 +116,9 @@ export default function NavUser() {
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <MenuItem onClick={handleLogout}>Logout</MenuItem>
-        <MenuItem component={Link} to="#!" onClick={handleClose}>
+        {/* <MenuItem component={Link} to="#!" onClick={handleClose}>
           Profile
-        </MenuItem>
+        </MenuItem> */}
         <MenuItem component={Link} to="#!" onClick={handleClose}>
           My account
         </MenuItem>

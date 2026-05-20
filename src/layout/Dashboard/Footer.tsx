@@ -9,13 +9,13 @@ export default function Footer() {
       direction={{ xs: 'column', sm: 'row' }}
       sx={{ gap: 1.5, alignItems: 'center', justifyContent: 'space-between', p: '24px 16px 0px', mt: 'auto' }}
     >
-      <Typography variant="caption">
+      {/* <Typography variant="caption">
         &copy; All rights reserved{' '}
         <Link href="https://codedthemes.com/" target="_blank" underline="hover">
           CodedThemes
         </Link>
-      </Typography>
-      <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center', justifyContent: 'space-between' }}>
+      </Typography> */}
+      {/* <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="https://codedthemes.com/hire-us/" target="_blank" variant="caption" color="text.primary">
           Hire us
         </Link>
@@ -28,7 +28,7 @@ export default function Footer() {
         <Link href="https://links.codedthemes.com/dAAOP" target="_blank" variant="caption" color="text.primary">
           Figma Design System
         </Link>
-      </Stack>
+      </Stack> */}
     </Stack>
   );
 }
