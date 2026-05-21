@@ -1,8 +1,8 @@
-import { ReactElement } from 'react';
+import { ReactElement } from "react";
 
 // third-party
-import firebase from 'firebase/compat/app';
-import { PopupLoginOptions, RedirectLoginOptions } from '@auth0/auth0-react';
+import firebase from "firebase/compat/app";
+import { PopupLoginOptions, RedirectLoginOptions } from "@auth0/auth0-react";
 
 // ==============================|| AUTH TYPES ||============================== //
 
@@ -12,20 +12,38 @@ export type GuardProps = {
 
 type CanRemove = {
   login?: (email: string, password: string) => Promise<void>;
-  register?: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  register?: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+  ) => Promise<void>;
   codeVerification?: (verificationCode: string) => Promise<void>;
   resendConfirmationCode?: () => Promise<void>;
-  firebaseRegister?: (email: string, password: string) => Promise<firebase.auth.UserCredential>;
-  firebaseEmailPasswordSignIn?: (email: string, password: string) => Promise<firebase.auth.UserCredential>;
+  firebaseRegister?: (
+    email: string,
+    password: string,
+  ) => Promise<firebase.auth.UserCredential>;
+  firebaseEmailPasswordSignIn?: (
+    email: string,
+    password: string,
+  ) => Promise<firebase.auth.UserCredential>;
   loginAuth?: (options?: PopupLoginOptions) => Promise<void>;
   loginWithRedirect?: (options?: RedirectLoginOptions) => Promise<void>;
   confirmRegister?: (email: string, code: string) => Promise<void>;
   forgotPassword?: (email: string) => Promise<void>;
   resendCodeRegister?: (email: string) => Promise<void>;
-  newPassword?: (email: string, code: string, password: string) => Promise<void>;
+  newPassword?: (
+    email: string,
+    code: string,
+    password: string,
+  ) => Promise<void>;
   updatePassword?: (password: string) => Promise<void>;
   resetPassword?: (email: string) => Promise<void>;
-  awsResetPassword?: (verificationCode: string, newPassword: string) => Promise<any>;
+  awsResetPassword?: (
+    verificationCode: string,
+    newPassword: string,
+  ) => Promise<any>;
 };
 
 type UserProfile = {
@@ -55,8 +73,14 @@ export type FirebaseContextType = CanRemove & {
   isInitialized?: boolean;
   user?: UserProfile | null | undefined;
   logout: () => Promise<void>;
-  firebaseRegister: (email: string, password: string) => Promise<firebase.auth.UserCredential>;
-  firebaseEmailPasswordSignIn: (email: string, password: string) => Promise<firebase.auth.UserCredential>;
+  firebaseRegister: (
+    email: string,
+    password: string,
+  ) => Promise<firebase.auth.UserCredential>;
+  firebaseEmailPasswordSignIn: (
+    email: string,
+    password: string,
+  ) => Promise<firebase.auth.UserCredential>;
   firebaseGoogleSignIn: () => Promise<firebase.auth.UserCredential>;
   firebaseTwitterSignIn: () => Promise<firebase.auth.UserCredential>;
   firebaseFacebookSignIn: () => Promise<firebase.auth.UserCredential>;
@@ -70,8 +94,16 @@ export type AWSCognitoContextType = CanRemove & {
   user?: UserProfile | null | undefined;
   logout: () => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  awsResetPassword: (verificationCode: string, newPassword: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+  ) => Promise<void>;
+  awsResetPassword: (
+    verificationCode: string,
+    newPassword: string,
+  ) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   updateProfile: VoidFunction;
   codeVerification: (verificationCode: string) => Promise<void>;
@@ -90,7 +122,12 @@ export type JWTContextType = CanRemove & {
   user?: UserProfile | null | undefined;
   logout: () => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+  ) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: VoidFunction;
 };
@@ -110,7 +147,12 @@ export type SupabaseContextType = CanRemove & {
   isInitialized?: boolean;
   user: UserProfile | null | undefined;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
 };
