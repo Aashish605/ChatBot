@@ -2,9 +2,11 @@ import { ReactNode, useState } from 'react';
 
 // material-ui
 import { useColorScheme, useTheme } from '@mui/material/styles';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
+import OutlinedInput from '@mui/material/OutlinedInput';
 import Select from '@mui/material/Select';
 import Slider from '@mui/material/Slider';
 import Stack from '@mui/material/Stack';
@@ -26,8 +28,12 @@ import { StatusPill } from 'components/third-party/react-table';
 import { withAlpha } from 'utils/colorUtils';
 import { getImageUrl, ImagePath } from 'utils/getImageUrl';
 
+// types
+import { KnowledgeBaseStep, TableDataProps } from 'types/table';  // 👈 add this
+
 // assets
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
+import DeleteOutlined from '@ant-design/icons/DeleteOutlined';    // 👈 add this
 import EditTwoTone from '@ant-design/icons/EditTwoTone';
 import SendOutlined from '@ant-design/icons/SendOutlined';
 
@@ -39,50 +45,118 @@ interface EditRowProps<TData> {
 
 const nonEditableFields: UniqueIdentifier[] = ['drag-handle', 'expander', 'select'];
 
+// ==============================|| STEPS EDITOR COMPONENT ||============================== //
+// 👇 Add this entire component above EditRow
+
+function StepsEditor({
+  row,
+  onChange
+}: {
+  row: Row<TableDataProps>;
+  onChange: (value: unknown) => void;
+}) {
+  const [localSteps, setLocalSteps] = useState<KnowledgeBaseStep[]>(
+    (row.original as TableDataProps).steps ?? []
+  );
+
+  const handleStepChange = (index: number, text: string) => {
+    const updated = localSteps.map((s, i) => (i === index ? { text } : s));
+    setLocalSteps(updated);
+    onChange(updated);
+  };
+
+  const handleDelete = (index: number) => {
+    const updated = localSteps.filter((_, i) => i !== index);
+    setLocalSteps(updated);
+    onChange(updated);
+  };
+
+  const handleAdd = () => {
+    const updated = [...localSteps, { text: '' }];
+    setLocalSteps(updated);
+    onChange(updated);
+  };
+
+  return (
+    <Stack spacing={1} sx={{ minWidth: 240 }}>
+      {localSteps.map((step, index) => (
+        <Stack key={index} direction="row" spacing={1} alignItems="center">
+          <OutlinedInput
+            size="small"
+            fullWidth
+            value={step.text}
+            onChange={(e) => handleStepChange(index, e.target.value)}
+            placeholder={`Step ${index + 1}`}
+            slotProps={{ input: { sx: { py: 0.75 } } }}
+          />
+          <IconButton size="small" color="error" onClick={() => handleDelete(index)}>
+            <DeleteOutlined />
+          </IconButton>
+        </Stack>
+      ))}
+      <Button size="small" variant="outlined" onClick={handleAdd}>
+        + Add Step
+      </Button>
+    </Stack>
+  );
+}
+
+// ==============================|| YUP SCHEMA ||============================== //
+
 function getYupSchemaForRow<TData>(row: Row<TData>) {
   const shape: Record<string, any> = {};
-  const skipValidation = ['drag-handle', 'expander', 'select', 'actions'];
+  const skipValidation = ['drag-handle', 'expander', 'select', 'actions', 'steps']; // 👈 add 'steps' here
   row.getVisibleCells().forEach((cell) => {
     const columnId = cell.column.id;
     if (skipValidation.includes(columnId)) {
       return;
     }
     switch (columnId) {
-      case 'fullName':
+      case 'title':
         shape[columnId] = Yup.string()
-          .test('trim', 'Name cannot be empty or contain only spaces', (value) => !!value && value.trim().length > 0)
-          .required('Name is required');
+          .test('trim', 'Title cannot be empty', (value) => !!value && value.trim().length > 0)
+          .required('Title is required');
         break;
-      case 'email':
-        shape[columnId] = Yup.string().email('Invalid email').required('Email is required');
+      case 'type':
+        shape[columnId] = Yup.string().required('Type is required');
         break;
-      case 'age':
+      case 'category':
+        shape[columnId] = Yup.string().required('Category is required');
+        break;
+      case 'question':
+        shape[columnId] = Yup.string().required('Question is required');
+        break;
+      case 'answer':
+        shape[columnId] = Yup.string().required('Answer is required');
+        break;
+      case 'content':
+        shape[columnId] = Yup.string().required('Content is required');
+        break;
+      case 'tags':
+        shape[columnId] = Yup.string().required('Tags are required');
+        break;
+      case 'keywords':
+        shape[columnId] = Yup.string().required('Keywords are required');
+        break;
+      case 'common_user_phrases':
+        shape[columnId] = Yup.string().required('Common phrases are required');
+        break;
+      case 'priority':
         shape[columnId] = Yup.number()
-          .typeError('Age must be a number')
-          .required('Age is required')
-          .min(18, 'Minimum age is 18')
-          .max(65, 'Maximum age is 65');
+          .typeError('Priority must be a number')
+          .required('Priority is required')
+          .min(1, 'Minimum priority is 1')
+          .max(10, 'Maximum priority is 10');
         break;
-      case 'visits':
-        shape[columnId] = Yup.number().typeError('Visits must be a number').required('Visits are required');
+      case 'visibility':
+        shape[columnId] = Yup.string()
+          .oneOf(['public', 'private'], 'Must be public or private')
+          .required('Visibility is required');
         break;
-      case 'role':
-        shape[columnId] = Yup.string().required('Role is required');
-        break;
-      case 'contact':
-        shape[columnId] = Yup.string().required('Contact is required');
-        break;
-      case 'country':
-        shape[columnId] = Yup.string().required('Country is required');
-        break;
-      case 'status':
-        shape[columnId] = Yup.string().required('Status is required');
-        break;
-      case 'progress':
-        shape[columnId] = Yup.number().typeError('Progress must be a number').required('Progress is required');
+      case 'is_active':
+        shape[columnId] = Yup.boolean().required('Active status is required');
         break;
       default:
-        // For any other fields, use a generic required message
         shape[columnId] = Yup.string().required('This field is required');
         break;
     }
@@ -117,7 +191,9 @@ export default function EditRow<TData>({ row, onSave, groupedColumns }: EditRowP
     enableReinitialize: true,
     validationSchema: getYupSchemaForRow(row),
     onSubmit: (values, actions) => {
-      onSave(values);
+      // 👇 merge steps from row.original since accessorFn stringifies them
+      const stepsValue = (row.original as TableDataProps).steps;
+      onSave({ ...values, steps: stepsValue });
       setEditMode(false);
       actions.setSubmitting(false);
     }
@@ -145,7 +221,6 @@ export default function EditRow<TData>({ row, onSave, groupedColumns }: EditRowP
         const columnId = cell.column.id;
         const value = cell.getValue();
 
-        // Hide value in grouped columns for leaf rows
         if (groupedColumns && groupedColumns.includes(columnId)) {
           return null;
         }
@@ -153,8 +228,16 @@ export default function EditRow<TData>({ row, onSave, groupedColumns }: EditRowP
         let cellContent;
         switch (dataType) {
           case 'avatar':
-            cellContent = <Avatar alt="Avatar" size="sm" src={getImageUrl(`avatar-${value}.png`, ImagePath.USERS)} sx={{ m: 'auto' }} />;
+            cellContent = (
+              <Avatar
+                alt="Avatar"
+                size="sm"
+                src={getImageUrl(`avatar-${value}.png`, ImagePath.USERS)}
+                sx={{ m: 'auto' }}
+              />
+            );
             break;
+
           case 'number':
           case 'text':
             cellContent = isEditMode ? (
@@ -166,12 +249,15 @@ export default function EditRow<TData>({ row, onSave, groupedColumns }: EditRowP
                 onChange={(e) => {
                   handleChange(e);
                   const val = e.target.value;
-                  handleEditDataChange(columnId, dataType === 'number' && val !== '' && !isNaN(Number(val)) ? Number(val) : val);
+                  handleEditDataChange(
+                    columnId,
+                    dataType === 'number' && val !== '' && !isNaN(Number(val)) ? Number(val) : val
+                  );
                 }}
                 onBlur={(e) => {
                   const trimmed = (e.target.value ?? '').trim();
                   if (trimmed !== formik.values[columnId]) {
-                    formik.setFieldValue(columnId, trimmed, false); // write back to Formik
+                    formik.setFieldValue(columnId, trimmed, false);
                   }
                 }}
                 error={!!errors[columnId]}
@@ -183,28 +269,61 @@ export default function EditRow<TData>({ row, onSave, groupedColumns }: EditRowP
               value
             );
             break;
+
           case 'select':
+            // 👇 handle both status and visibility and is_active selects
             cellContent = isEditMode ? (
-              <Select
-                value={values[columnId]}
-                onChange={(e) => handleEditDataChange(columnId, e.target.value)}
-                size="small"
-                slotProps={{ input: { sx: { py: 0.5 } } }}
-              >
-                <MenuItem value="Complicated">
-                  <Chip color="error" label="Complicated" size="small" variant="light" />
-                </MenuItem>
-                <MenuItem value="Relationship">
-                  <Chip color="success" label="Relationship" size="small" variant="light" />
-                </MenuItem>
-                <MenuItem value="Single">
-                  <Chip color="info" label="Single" size="small" variant="light" />
-                </MenuItem>
-              </Select>
+              columnId === 'visibility' ? (
+                <Select
+                  value={values[columnId]}
+                  onChange={(e) => handleEditDataChange(columnId, e.target.value)}
+                  size="small"
+                  slotProps={{ input: { sx: { py: 0.5 } } }}
+                >
+                  <MenuItem value="public">
+                    <Chip color="success" label="Public" size="small" variant="light" />
+                  </MenuItem>
+                  <MenuItem value="private">
+                    <Chip color="error" label="Private" size="small" variant="light" />
+                  </MenuItem>
+                </Select>
+              ) : columnId === 'is_active' ? (
+                <Select
+                  value={String(values[columnId])}
+                  onChange={(e) => handleEditDataChange(columnId, e.target.value === 'true')}
+                  size="small"
+                  slotProps={{ input: { sx: { py: 0.5 } } }}
+                >
+                  <MenuItem value="true">
+                    <Chip color="success" label="Yes" size="small" variant="light" />
+                  </MenuItem>
+                  <MenuItem value="false">
+                    <Chip color="error" label="No" size="small" variant="light" />
+                  </MenuItem>
+                </Select>
+              ) : (
+                <Select
+                  value={values[columnId]}
+                  onChange={(e) => handleEditDataChange(columnId, e.target.value)}
+                  size="small"
+                  slotProps={{ input: { sx: { py: 0.5 } } }}
+                >
+                  <MenuItem value="Complicated">
+                    <Chip color="error" label="Complicated" size="small" variant="light" />
+                  </MenuItem>
+                  <MenuItem value="Relationship">
+                    <Chip color="success" label="Relationship" size="small" variant="light" />
+                  </MenuItem>
+                  <MenuItem value="Single">
+                    <Chip color="info" label="Single" size="small" variant="light" />
+                  </MenuItem>
+                </Select>
+              )
             ) : (
-              <StatusPill status={value as string} />
+              <StatusPill status={String(value)} />
             );
             break;
+
           case 'progress':
             cellContent = isEditMode ? (
               <Stack direction="row" sx={{ alignItems: 'center', pl: 1, minWidth: 120 }}>
@@ -222,6 +341,27 @@ export default function EditRow<TData>({ row, onSave, groupedColumns }: EditRowP
               <LinearWithLabel value={value as number} sx={{ minWidth: 75 }} />
             );
             break;
+
+          // 👇 ADD THIS NEW CASE
+          case 'steps':
+            cellContent = isEditMode ? (
+              <StepsEditor
+                row={row as unknown as Row<TableDataProps>}
+                onChange={(updated) => handleEditDataChange(columnId, updated)}
+              />
+            ) : (
+              <span>
+                {((row.original as TableDataProps).steps ?? []).length > 0
+                  ? (row.original as TableDataProps).steps.map((s, i) => (
+                      <span key={i} style={{ display: 'block', fontSize: '0.75rem' }}>
+                        {i + 1}. {s.text}
+                      </span>
+                    ))
+                  : '—'}
+              </span>
+            );
+            break;
+
           case 'actions':
             cellContent = isEditMode ? (
               <Stack direction="row" sx={{ gap: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -242,13 +382,16 @@ export default function EditRow<TData>({ row, onSave, groupedColumns }: EditRowP
                   <EditTwoTone
                     twoToneColor={[
                       theme.palette.primary.main,
-                      colorScheme === ThemeMode.DARK ? withAlpha(theme.palette.primary.darker, 0.5) : ''
+                      colorScheme === ThemeMode.DARK
+                        ? withAlpha(theme.palette.primary.darker, 0.5)
+                        : ''
                     ]}
                   />
                 </IconButton>
               </Tooltip>
             );
             break;
+
           default:
             cellContent = value;
         }

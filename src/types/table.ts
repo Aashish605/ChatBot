@@ -1,12 +1,5 @@
 import { ChangeEvent, SyntheticEvent } from 'react';
-
-// material-ui
 import { TableCellProps } from '@mui/material/TableCell';
-
-// project imports
-import { Gender } from 'config';
-
-// types
 import { KeyedObject } from './root';
 
 export type ArrangementOrder = 'asc' | 'desc' | undefined;
@@ -30,32 +23,23 @@ export interface HeadCell {
   align?: 'left' | 'right' | 'inherit' | 'center' | 'justify' | undefined;
 }
 
-export interface TableDataApiResponse {
-  data: TableDataProps[];
-  meta: {
-    totalRowCount: number;
-  };
+export interface KnowledgeBaseStep {
+  text: string;
 }
 
 export interface TableDataProps {
-  id: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  fatherName: string;
-  email: string;
-  age: number;
-  gender: Gender;
-  role: string;
-  visits: number;
-  progress: number;
-  status: string;
-  orderStatus: string;
-  contact: string;
-  country: string;
-  address: string;
-  about: string;
-  avatar: number;
-  skills: string[];
-  time: string[];
+  id: number;                                // ✅ required by DnD and getRowId
+  type: string;
+  title: string;
+  question: string;
+  answer: string;
+  content: string;
+  category: string;
+  tags: string;
+  keywords: string;
+  common_user_phrases: string;
+  steps: KnowledgeBaseStep[];
+  priority: number;
+  visibility: 'public' | 'private';
+  is_active: boolean;
 }
