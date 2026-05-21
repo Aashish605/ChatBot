@@ -8,7 +8,7 @@ import SimpleLayout from 'layout/Simple';
 import ChatPage from 'pages/chatt'
 import Form from 'pages/knowledge-base/index'
 import { SimpleLayoutType } from 'config';
-
+import Umbrella from 'pages/tables/react-table/umbrella'
 // pages routing
 const MaintenanceError = Loadable(lazy(() => import('pages/maintenance/404')));
 const MaintenanceError500 = Loadable(lazy(() => import('pages/maintenance/500')));
@@ -36,6 +36,10 @@ const MainRoutes = {
         {
           path: 'form',
           element: <Form />
+        },
+        {
+          path: 'table',
+          element: <Umbrella />
         },
 
       ]
