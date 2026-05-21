@@ -1,8 +1,11 @@
 /* eslint-disable prettier/prettier */
-import { error } from "console";
 import { openai } from "./openai";
 import { supabase } from "./supabase";
+import { useEffect } from "react";
 
+
+
+// get userID
 export const getuserID = async () => {
   const {
     data: { user },
@@ -17,6 +20,7 @@ export const getuserID = async () => {
   return data[0].id;
 };
 
+//Find the chat session if not found create new session
 export const chatSession = async () => {
   const user_id = await getuserID();
   const { data, error } = await supabase
@@ -50,6 +54,8 @@ export const chatSession = async () => {
   }
 };
 
+
+// insert the data in message table
 export const chatMessage = async (
   session_id: string,
   message: string,
@@ -83,10 +89,12 @@ export const chatMessage = async (
   return data;
 };
 
+// handle the the user query and response 
 export const handleSubmit = async (message: string) => {
   const sender_id = await getuserID();
   const session_id = await chatSession();
 
+  // calling the edge function
   const { data: functionData, error: functionError } =
     await supabase.functions.invoke("generate-embedding", {
       body: { text: message },
@@ -126,12 +134,10 @@ export const handleSubmit = async (message: string) => {
 
   const retrieved_documents = matchData;
   const ai_confidence = matchData && matchData.length > 0 ? matchData[0].similarity : 0;
-  console.log("AI Confidence:", ai_confidence);
 
 
   const context = matchData ? matchData.map((doc: any) => doc.content).join("\n\n") : "";
 
-  console.log("Retrieved context:", context);
 
   // Generate completions using OpenAI
   const completion = await openai.chat.completions.create({
@@ -149,8 +155,6 @@ export const handleSubmit = async (message: string) => {
   });
 
 
-  console.log("openai", completion);
-
   const tokens_used = completion.usage?.total_tokens || 0;
   const answer = completion.choices[0].message.content;
 
@@ -167,7 +171,6 @@ export const handleSubmit = async (message: string) => {
   );
 
   const chatMessage_id = data[0].id;
-  console.log("chatMessage_id", chatMessage_id);
 
   if (ai_confidence < 0.4) {
     console.log("sorry the confidence is low")
@@ -175,10 +178,10 @@ export const handleSubmit = async (message: string) => {
     return ["Sorry, the confidence score is low.A support agent will get back to you soon", chatMessage_id];
   }
 
-
   return [answer, chatMessage_id];
 };
 
+// handel the data from the chat file and  do moderation check
 export async function sendChatMessage({
   question,
 }: {
@@ -188,9 +191,6 @@ export async function sendChatMessage({
     await supabase.functions.invoke("moderateMessage", {
       body: { text: question },
     });
-
-  console.log("function data", functionData);
-  console.log("function error", functionError);
 
   if (functionError || !functionData) {
     throw new Error(functionError?.message || "Moderation Check Failed");
@@ -205,7 +205,7 @@ export async function sendChatMessage({
   return await handleSubmit(question);
 }
 
-
+// assign the support agen
 export async function assignAgent(chatMessage_id?: string | number) {
   if (chatMessage_id) {
     await ai_training_log(chatMessage_id);
@@ -233,9 +233,7 @@ export async function assignAgent(chatMessage_id?: string | number) {
 
 }
 
-
-
-
+// add data into the trainign log table
 export const ai_training_log = async (chatMessage_id: string | number) => {
   const { error } = await supabase.from("ai_training_logs").insert({
     session_id: await chatSession(),
@@ -249,7 +247,7 @@ export const ai_training_log = async (chatMessage_id: string | number) => {
 }
 
 
-
+// add data to analytic event
 export const analytic_event = async () => {
   await supabase.from("analytics_events").insert({
     event_type: "Assign Agent",
@@ -257,41 +255,3 @@ export const analytic_event = async () => {
   })
 }
 
-
-
-
-
-
-export async function handleUserMessage(message: string, sessionId: string, userId: string) {
-
-  // 1. MODERATION CHECK FIRST
-  const moderation = await moderateMessage(message);
-
-  if (moderation.flagged) {
-
-    await supabase.from("moderation_logs").insert({
-      chat_session_id: sessionId,
-      user_id: userId,
-      message,
-      flagged: true,
-      categories: moderation.categories,
-      severity: "high",
-      action_taken: "block",
-    });
-
-    // optional escalation
-    await createEscalation(sessionId, "moderation_flag");
-
-    return {
-      error: "Your message was flagged by safety filters.",
-    };
-  }
-
-  // 2. If safe → continue normal flow
-  const aiResponse = await sendChatMessage({
-    sessionId,
-    question: message,
-  });
-
-  return aiResponse;
-}
