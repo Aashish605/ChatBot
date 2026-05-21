@@ -11,7 +11,7 @@ export const getuserID = () => {
   if (userID) {
     return userID;
   }
-  else{
+  else {
     console.error("No user found in the users table.");
     return null;
   }
@@ -20,9 +20,10 @@ export const getuserID = () => {
 //Find the chat session if not found create new session
 export const chatSession = async () => {
   const user_id = getuserID();
+
   const { data, error } = await supabase
     .from("chat_sessions")
-    .select("*")
+    .select("id")
     .eq("user_id", user_id)
     .eq("status", "open")
     .order("last_message_at", { ascending: false })
@@ -30,25 +31,29 @@ export const chatSession = async () => {
 
   if (error) {
     console.error("Error fetching chat session:", error);
+    throw new Error(error.message || "Failed to fetch chat session");
   }
-
   if (data && data.length > 0) {
+    console.log("data from the session table", data);
     return data[0].id;
-  } else {
-    const { data: newSession, error: createError } = await supabase
-      .from("chat_sessions")
-      .insert({
-        user_id,
-        status: "open",
-        source: "web",
-      })
-      .select();
-
-    if (createError || !newSession || newSession.length === 0) {
-      throw new Error(createError?.message || "Failed to create chat session");
-    }
-    return newSession[0].id;
   }
+
+  // 3. Otherwise, create a new one
+  const { data: newSession, error: createError } = await supabase
+    .from("chat_sessions")
+    .insert({
+      user_id,
+      status: "open",
+      source: "web",
+    })
+    .select("id"); // Optimization: Only select the 'id' back
+
+  if (createError || !newSession || newSession.length === 0) {
+    console.error("Error creating chat session:", createError);
+    throw new Error(createError?.message || "Failed to create chat session");
+  }
+
+  return newSession[0].id;
 };
 
 
@@ -132,6 +137,7 @@ export const handleSubmit = async (message: string) => {
   const retrieved_documents = matchData;
   const ai_confidence = matchData && matchData.length > 0 ? matchData[0].similarity : 0;
 
+  console.log("ai_confidence", ai_confidence);
 
   const context = matchData ? matchData.map((doc: any) => doc.content).join("\n\n") : "";
 
@@ -189,13 +195,18 @@ export async function sendChatMessage({
       body: { text: question },
     });
 
+  const categories = functionData.categories;
+  const flaggedCategory = Object.keys(categories).find(key => categories[key] === true);
+
   if (functionError || !functionData) {
-    throw new Error(functionError?.message || "Moderation Check Failed");
+    await moderation(question, flaggedCategory);
+    return (functionError?.message || "Moderation Check Failed");
   }
 
   const isFlagged = functionData.flagged;
 
   if (isFlagged) {
+    await moderation(question, flaggedCategory);
     return ["Message blocked due to policy violation. Please try again.", null]
   }
 
@@ -252,3 +263,15 @@ export const analytic_event = async () => {
   })
 }
 
+
+
+// add data into the moderation table 
+export const moderation = async (message: string, catogery?: string) => {
+  const { error } = await supabase.from("moderation_logs").insert({
+    session_id: await chatSession(),
+    message,
+    flagged_reason:catogery ,
+
+  })
+  console.log("data from the moderation table",error)
+}
