@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useAuthStore } from "store/authStore";
 
 import {
   Box,
@@ -24,6 +25,7 @@ import MainCard from "components/MainCard";
 import { useChat } from "hooks/usechatt";
 
 export default function ChatCard() {
+
   const { messages, loading, sendMessage } = useChat();
 
   const [inputValue, setInputValue] = useState("");

@@ -1,28 +1,25 @@
 /* eslint-disable prettier/prettier */
 import { openai } from "./openai";
 import { supabase } from "./supabase";
-import { useEffect } from "react";
+import { useAuthStore } from "store/authStore";
 
 
 
 // get userID
-export const getuserID = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) return user.id;
-
-  // Fallback if no active auth session is detected
-  const { data, error } = await supabase.from("users").select("id").limit(1);
-  if (error || !data || data.length === 0) {
-    throw new Error("No user found in the users table.");
+export const getuserID = () => {
+  const userID = useAuthStore.getState().user?.id;
+  if (userID) {
+    return userID;
   }
-  return data[0].id;
+  else{
+    console.error("No user found in the users table.");
+    return null;
+  }
 };
 
 //Find the chat session if not found create new session
 export const chatSession = async () => {
-  const user_id = await getuserID();
+  const user_id = getuserID();
   const { data, error } = await supabase
     .from("chat_sessions")
     .select("*")
@@ -91,7 +88,7 @@ export const chatMessage = async (
 
 // handle the the user query and response 
 export const handleSubmit = async (message: string) => {
-  const sender_id = await getuserID();
+  const sender_id = getuserID();
   const session_id = await chatSession();
 
   // calling the edge function
@@ -199,7 +196,7 @@ export async function sendChatMessage({
   const isFlagged = functionData.flagged;
 
   if (isFlagged) {
-    return ["Message blocked due to policy violation. Please try again.",null]
+    return ["Message blocked due to policy violation. Please try again.", null]
   }
 
   return await handleSubmit(question);
@@ -251,7 +248,7 @@ export const ai_training_log = async (chatMessage_id: string | number) => {
 export const analytic_event = async () => {
   await supabase.from("analytics_events").insert({
     event_type: "Assign Agent",
-    user_id: await getuserID(),
+    user_id: getuserID(),
   })
 }
 
