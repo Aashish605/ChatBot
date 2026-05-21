@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { KnowledgeBaseFormData } from "types/knowledgeBase";
+import { getuserID } from "./chatt";
 
 
 export async function saveKnowledgeBase(formData: KnowledgeBaseFormData) {
@@ -27,7 +28,6 @@ User Phrases: ${formData.common_user_phrases || ""}
 
     const embedding = functionData.embedding;
 
-    console.log("embedding:::",embedding)
 
     const { data, error } = await supabase
       .from("knowledge_base")
@@ -55,6 +55,7 @@ User Phrases: ${formData.common_user_phrases || ""}
         visibility: formData.visibility,
         is_active: formData.is_active,
         embedding,
+        created_by:getuserID()
       })
       .select();
 
