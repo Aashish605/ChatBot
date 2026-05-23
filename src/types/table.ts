@@ -35,9 +35,9 @@ export interface TableDataProps {
   answer: string;
   content: string;
   category: string;
-  tags: string;
-  keywords: string;
-  common_user_phrases: string;
+  tags: string[];
+  keywords: string[];
+  common_user_phrases: string[];
   steps: KnowledgeBaseStep[];
   priority: number;
   visibility: 'public' | 'private';
