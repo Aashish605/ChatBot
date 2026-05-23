@@ -5,6 +5,7 @@ import { getuserID } from "./chatt";
 
 export async function saveKnowledgeBase(formData: KnowledgeBaseFormData) {
   try {
+    console.log(formData)
     if (!formData.title) throw new Error("Title is required");
 
     const textToEmbed = `
@@ -38,7 +39,6 @@ User Phrases: ${formData.common_user_phrases || ""}
         answer: formData.answer,
         content: formData.content,
         category: formData.category,
-
         tags: formData.tags
           ? formData.tags.split(",").map(t => t.trim()).filter(Boolean)
           : [],
@@ -55,7 +55,8 @@ User Phrases: ${formData.common_user_phrases || ""}
         visibility: formData.visibility,
         is_active: formData.is_active,
         embedding,
-        created_by:getuserID()
+        created_by:getuserID(),
+        steps:formData.steps,
       })
       .select();
 
