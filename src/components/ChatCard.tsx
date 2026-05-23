@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useAuthStore } from "store/authStore";
 
 import {
   Box,
