@@ -34,7 +34,6 @@ export const chatSession = async () => {
     throw new Error(error.message || "Failed to fetch chat session");
   }
   if (data && data.length > 0) {
-    console.log("data from the session table", data);
     return data[0].id;
   }
 
@@ -262,7 +261,6 @@ export const analytic_event = async () => {
     user_id: getuserID(),
   })
 }
-
 
 
 // add data into the moderation table 

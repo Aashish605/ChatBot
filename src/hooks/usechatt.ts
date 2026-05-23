@@ -1,12 +1,37 @@
 /* eslint-disable prettier/prettier */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Message } from "types/chatt";
 
 // eslint-disable-next-line prettier/prettier
-import { sendChatMessage , assignAgent } from 'api/chatt';
+import { sendChatMessage, assignAgent } from 'api/chatt';
+import { supabase } from "api/supabase";
+import { chatSession } from "api/chatt";
+
 
 export function useChat() {
+
+  useEffect(() => {
+    const getMessages = async () => {
+      const session_id = await chatSession();
+      console.log("session_id", session_id);
+
+      const { data: messages, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('session_id', session_id);
+
+      if (error) {
+        console.error("Error fetching messages:", error);
+        return;
+      }
+
+      console.log("messages", messages);
+      setMessages(messages);
+    }
+    getMessages()
+  },[])
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -49,10 +74,10 @@ export function useChat() {
         question: text,
       });
 
-      const[aiResponse,chatMessage_id] = Response;
+      const [aiResponse, chatMessage_id] = Response;
       console.log("chatMessage_id", chatMessage_id);
 
-      if(!aiResponse){
+      if (!aiResponse) {
         await assignAgent(chatMessage_id);
       }
 

@@ -25,8 +25,9 @@ import MainCard from "components/MainCard";
 import { useChat } from "hooks/usechatt";
 
 export default function ChatCard() {
-
   const { messages, loading, sendMessage } = useChat();
+
+  console.log("messages from component", messages);
 
   const [inputValue, setInputValue] = useState("");
 
@@ -48,9 +49,7 @@ export default function ChatCard() {
     await sendMessage(trimmed);
   };
 
-  const handleKeyPress = async (
-    e: React.KeyboardEvent<HTMLInputElement>
-  ) => {
+  const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       await handleSendMessage();
@@ -158,7 +157,6 @@ export default function ChatCard() {
                   borderRadius: "50%",
                 }}
               />
-
               Online
             </Typography>
           </Box>
@@ -201,9 +199,7 @@ export default function ChatCard() {
                   display: "flex",
                   flexDirection: "column",
 
-                  alignItems: isMe
-                    ? "flex-end"
-                    : "flex-start",
+                  alignItems: isMe ? "flex-end" : "flex-start",
                 }}
               >
                 <Paper
@@ -223,23 +219,15 @@ export default function ChatCard() {
                       ? "18px 18px 4px 18px"
                       : "18px 18px 18px 4px",
 
-                    bgcolor: isMe
-                      ? "primary.main"
-                      : "background.paper",
+                    bgcolor: isMe ? "primary.main" : "background.paper",
 
-                    color: isMe
-                      ? "primary.contrastText"
-                      : "text.primary",
+                    color: isMe ? "primary.contrastText" : "text.primary",
 
-                    border: isMe
-                      ? "none"
-                      : "1px solid",
+                    border: isMe ? "none" : "1px solid",
 
                     borderColor: "divider",
 
-                    boxShadow: isMe
-                      ? "none"
-                      : "0 1px 2px rgba(0,0,0,0.04)",
+                    boxShadow: isMe ? "none" : "0 1px 2px rgba(0,0,0,0.04)",
                   }}
                 >
                   <Typography
@@ -261,9 +249,7 @@ export default function ChatCard() {
                     mt: 0.6,
                     px: 0.5,
 
-                    textAlign: isMe
-                      ? "right"
-                      : "left",
+                    textAlign: isMe ? "right" : "left",
                   }}
                 >
                   {msg.time}
@@ -295,17 +281,10 @@ export default function ChatCard() {
                   bgcolor: "background.paper",
                 }}
               >
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  alignItems="center"
-                >
+                <Stack direction="row" spacing={1} alignItems="center">
                   <CircularProgress size={16} />
 
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
+                  <Typography variant="caption" color="text.secondary">
                     AI is thinking...
                   </Typography>
                 </Stack>
@@ -337,58 +316,37 @@ export default function ChatCard() {
             maxRows={4}
             size="small"
             placeholder="Ask anything..."
-
             value={inputValue}
-
-            onChange={(e) =>
-              setInputValue(e.target.value)
-            }
-
+            onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyPress}
-
             disabled={loading}
-
             slotProps={{
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
                     <IconButton size="small">
-                      <SmileOutlined
-                        style={{ fontSize: 16 }}
-                      />
+                      <SmileOutlined style={{ fontSize: 16 }} />
                     </IconButton>
                   </InputAdornment>
                 ),
 
                 endAdornment: (
                   <InputAdornment position="end">
-                    <Stack
-                      direction="row"
-                      spacing={0.5}
-                    >
-                      <IconButton
-                        size="small"
-                        disabled={loading}
-                      >
-                        <PaperClipOutlined
-                          style={{ fontSize: 16 }}
-                        />
+                    <Stack direction="row" spacing={0.5}>
+                      <IconButton size="small" disabled={loading}>
+                        <PaperClipOutlined style={{ fontSize: 16 }} />
                       </IconButton>
 
                       <IconButton
                         size="small"
                         color="primary"
-                        disabled={
-                          !inputValue.trim() || loading
-                        }
+                        disabled={!inputValue.trim() || loading}
                         onClick={handleSendMessage}
                       >
                         {loading ? (
                           <CircularProgress size={16} />
                         ) : (
-                          <SendOutlined
-                            style={{ fontSize: 16 }}
-                          />
+                          <SendOutlined style={{ fontSize: 16 }} />
                         )}
                       </IconButton>
                     </Stack>
@@ -396,7 +354,6 @@ export default function ChatCard() {
                 ),
               },
             }}
-
             sx={{
               "& .MuiOutlinedInput-root": {
                 borderRadius: 3,
