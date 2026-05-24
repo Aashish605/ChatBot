@@ -23,7 +23,7 @@ export function useChat() {
 
   useEffect(() => {
     const getMessages = async () => {
-      const session_id = await chatSession();
+      const { id: session_id } = await chatSession();
       console.log("session_id", session_id);
 
       const { data: dbMessages, error } = await supabase

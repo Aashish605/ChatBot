@@ -3,82 +3,121 @@ import { openai } from "./openai";
 import { supabase } from "./supabase";
 import { useAuthStore } from "store/authStore";
 
-// get userID
+// =========================
+// USER ID
+// =========================
 export const getuserID = () => {
   const userID = useAuthStore.getState().user?.id;
-  if (userID) {
-    return userID;
-  } else {
+  if (!userID) {
     console.error("No user found in the users table.");
     return null;
   }
+  return userID;
 };
 
-let activeSessionRequest: Promise<string> | null = null;
+// =========================
+// USER NAME EXTRACTION
+// =========================
+export const checkUserNameFromMessage = async (
+  message?: string,
+  session_id?: string,
+) => {
+  if (!message || !session_id) return;
 
-//Find the chat session if not found create new session
-export const chatSession = async () => {
-  if (activeSessionRequest) {
-    return activeSessionRequest;
-  } 
+  console.log("extract name started" , message , session_id)
 
-  activeSessionRequest = (async () => {
+  const { data, error } = await supabase.functions.invoke("extract-name", {
+    body: { message },
+  });
+
+  if (error || !data) return null;
+
+  // Only update if a name was actually found
+  if (data.name) {
+    const { error: updateError } = await supabase
+      .from("chat_sessions")
+      .update({name: data.name })
+      .eq("id", session_id);
+
+    if (updateError) console.error("Failed to save user name:", updateError.message);
+  }
+
+  return data.name ?? null;
+};
+
+// =========================
+// SESSION HANDLER (optimized)
+// =========================
+let sessionPromise: Promise<{ id: string; isNew: boolean }> | null = null;
+let cachedSessionId: string | null = null;  // Avoid DB queries on every message
+let nameCheckDone = false;                  // Run extraction only once per load
+
+export const chatSession = async (message?: string) => {
+  // Return cached session immediately — no DB round-trip, no new sessions
+  if (cachedSessionId) {
+    if (!nameCheckDone && message) {
+      nameCheckDone = true; // Set BEFORE await to block concurrent calls
+      await checkUserNameFromMessage(message, cachedSessionId);
+    }
+    return { id: cachedSessionId, isNew: false };
+  }
+
+  // Deduplicate concurrent in-flight requests
+  if (sessionPromise) return sessionPromise;
+
+  sessionPromise = (async () => {
     try {
       const user_id = getuserID();
+      if (!user_id) throw new Error("No user id");
 
-      const { data: existingSession, error: fetchError } = await supabase
+      const { data: existingSession } = await supabase
         .from("chat_sessions")
-        .select("id")
+        .select("id, user_name_extracted")
         .eq("user_id", user_id)
         .eq("status", "open")
-        .order("last_message_at", { ascending: false })
+        .order("created_at", { ascending: false }) // created_at is always set; safer than last_message_at
         .limit(1)
         .maybeSingle();
 
-      if (fetchError) {
-        console.error(fetchError);
-        throw new Error(fetchError.message);
-      }
-
       if (existingSession) {
-        return existingSession.id;
+        cachedSessionId = existingSession.id;
+        // Mark done if already extracted; otherwise try on first real message
+        if (existingSession.user_name_extracted) {
+          nameCheckDone = true;
+        } else if (message && !nameCheckDone) {
+          nameCheckDone = true;
+          await checkUserNameFromMessage(message, existingSession.id);
+        }
+        return { id: existingSession.id, isNew: false };
       }
 
-      const { data: newSession, error: createError } = await supabase
+      const { data: newSession } = await supabase
         .from("chat_sessions")
-        .insert({
-          user_id,
-          status: "open",
-          source: "web",
-        })
+        .insert({ user_id, status: "open", source: "web" })
         .select("id")
         .single();
 
-      if (createError) {
-        const { data: retrySession } = await supabase
-          .from("chat_sessions")
-          .select("id")
-          .eq("user_id", user_id)
-          .eq("status", "open")
-          .maybeSingle();
+      if (!newSession) throw new Error("Session creation failed");
 
-        if (retrySession) {
-          return retrySession.id;
-        }
+      cachedSessionId = newSession.id;
 
-        throw new Error(createError.message);
+      if (message && !nameCheckDone) {
+        nameCheckDone = true;
+        await checkUserNameFromMessage(message, newSession.id);
       }
 
-      return newSession.id;
+      return { id: newSession.id, isNew: true };
     } finally {
-      activeSessionRequest = null;
+      sessionPromise = null;
     }
   })();
 
-  return activeSessionRequest;
+  return sessionPromise;
 };
 
-// insert the data in message table
+// =========================
+// MESSAGE INSERT
+// =========================
 export const chatMessage = async (
   session_id: string,
   message: string,
@@ -103,75 +142,129 @@ export const chatMessage = async (
     })
     .select();
 
-  if (error) {
-    console.error("Error saving message:", error);
-    throw error;
-  }
+  if (error) throw error;
 
-  console.log("Message Saved:", data);
   return data;
 };
 
-// handle the the user query and response
+// =========================
+// AI TRAINING LOG (refactored)
+// =========================
+export const ai_training_log = async (
+  session_id: string,
+  chatMessage_id: string | number,
+) => {
+  const { error } = await supabase.from("ai_training_logs").insert({
+    session_id,
+    message_id: chatMessage_id,
+    issue_type: "Low confidence",
+  });
+
+  if (error) console.error("AI training log error:", error);
+};
+
+// =========================
+// ANALYTICS
+// =========================
+export const analytic_event = async (user_id: string) => {
+  await supabase.from("analytics_events").insert({
+    event_type: "Assign Agent",
+    user_id,
+  });
+};
+
+// =========================
+// MODERATION (refactored)
+// =========================
+export const moderation = async (
+  session_id: string,
+  message: string,
+  category?: string,
+) => {
+  const { error } = await supabase.from("moderation_logs").insert({
+    session_id,
+    message,
+    flagged_reason: category,
+  });
+
+  if (error) console.error("Moderation error:", error);
+};
+
+// =========================
+// AGENT ASSIGNMENT (refactored)
+// =========================
+export async function assignAgent(
+  session_id: string,
+  chatMessage_id?: string | number,
+) {
+  if (chatMessage_id) {
+    await ai_training_log(session_id, chatMessage_id);
+    await analytic_event(getuserID());
+  }
+
+  const { data: agent } = await supabase
+    .from("support_agents")
+    .select("*")
+    .eq("status", "active")
+    .limit(1);
+
+  if (!agent?.length) return "No agent available";
+
+  const agent_id = agent[0].id;
+
+  await supabase
+    .from("chat_sessions")
+    .update({ assigned_agent_id: agent_id })
+    .eq("id", session_id);
+
+  await supabase
+    .from("support_agents")
+    .update({ status: "busy" })
+    .eq("id", agent_id);
+
+  return "Agent assigned";
+}
+
+// =========================
+// MAIN HANDLER (RAG FLOW)
+// =========================
 export const handleSubmit = async (message: string) => {
   const sender_id = getuserID();
-  const session_id = await chatSession();
+  const { id: session_id } = await chatSession(message);
 
-  // calling the edge function
-  const { data: functionData, error: functionError } =
-    await supabase.functions.invoke("generate-embedding", {
+  const { data: functionData, error } = await supabase.functions.invoke(
+    "generate-embedding",
+    {
       body: { text: message },
-    });
+    },
+  );
 
-  if (functionError || !functionData || !functionData.embedding) {
-    throw new Error(
-      functionError?.message || "Embedding generation failed via Edge Function",
-    );
+  if (error || !functionData?.embedding) {
+    throw new Error("Embedding generation failed");
   }
 
   const queryEmbedding = functionData.embedding;
 
-  // Save the user's message
-  await chatMessage(
-    session_id,
-    message,
-    "user",
-    sender_id,
-    0,
-    "text-embedding-3-small",
-  );
+  await chatMessage(session_id, message, "user", sender_id, 0);
 
-  // Match against knowledge base
-  const { data: matchData, error: matchError } = await supabase.rpc(
-    "match_knowledge_base",
-    {
-      query_embedding: queryEmbedding,
-      match_count: 5,
-    },
-  );
-
-  if (matchError) {
-    console.error("RPC match_knowledge_base error:", matchError);
-    throw matchError;
-  }
+  const { data: matchData } = await supabase.rpc("match_knowledge_base", {
+    query_embedding: queryEmbedding,
+    match_count: 5,
+  });
 
   const retrieved_documents = matchData;
-  const ai_confidence =
-    matchData && matchData.length > 0 ? matchData[0].similarity : 0;
-
-  console.log("ai_confidence", ai_confidence);
+  const ai_confidence = matchData?.[0]?.similarity || 0;
 
   const context = matchData
-    ? matchData.map((doc: any) => doc.content).join("\n\n")
+    ? matchData.map((d: any) => d.content).join("\n\n")
     : "";
 
-  // Generate completions using OpenAI
   const completion = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
     messages: [
       {
         role: "system",
-        content: `You are a helpful support assistant.Answer only using provided context.`,
+        content: "You are a helpful support assistant. Answer only using context.",
       },
       {
         role: "user",
@@ -180,13 +273,15 @@ export const handleSubmit = async (message: string) => {
     ],
   });
 
-  const tokens_used = completion.usage?.total_tokens || 0;
-  const answer = completion.choices[0].message.content;
+  const answer =
+    completion.choices[0].message.content ||
+    "Sorry, I couldn't generate a response.";
 
-  // Save the AI's response
+  const tokens_used = completion.usage?.total_tokens || 0;
+
   const data = await chatMessage(
     session_id,
-    answer || "Sorry, I couldn't generate a response.",
+    answer,
     "ai",
     null,
     tokens_used,
@@ -198,10 +293,9 @@ export const handleSubmit = async (message: string) => {
   const chatMessage_id = data[0].id;
 
   if (ai_confidence < 0.4) {
-    console.log("sorry the confidence is low");
-    await assignAgent(chatMessage_id);
+    await assignAgent(session_id, chatMessage_id);
     return [
-      "Sorry, the confidence score is low.A support agent will get back to you soon",
+      "Sorry, confidence is low. A support agent will get back to you.",
       chatMessage_id,
     ];
   }
@@ -209,153 +303,76 @@ export const handleSubmit = async (message: string) => {
   return [answer, chatMessage_id];
 };
 
+// =========================
+// SEND MESSAGE (ENTRY POINT)
+// =========================
 export async function sendChatMessage({ question }: { question: string }) {
-  const { data: functionData, error: functionError } =
-    await supabase.functions.invoke("moderateMessage", {
+  const sender_id = getuserID();
+
+  const { data: functionData } = await supabase.functions.invoke(
+    "moderateMessage",
+    {
       body: { text: question },
-    });
+    },
+  );
 
-  console.log(functionData);
-
-  if (functionError || !functionData) {
-    await moderation(question);
-    return [functionError?.message || "Moderation Check Failed", null];
+  if (!functionData) {
+    await moderation("", question);
+    return ["Moderation failed", null];
   }
 
-  if (functionData.intent === "casual") {
-    const { data: casualData, error: casualError } =
-      await supabase.functions.invoke("super-api", {
+  const { intent } = functionData;
+
+  // CASUAL
+  if (intent === "casual") {
+    const { data: casualData } = await supabase.functions.invoke(
+      "super-api",
+      {
         body: { text: question },
-      });
+      },
+    );
 
-    if (casualError || !casualData) {
-      throw new Error(casualError?.message || "Casual check failed");
-    }
+    const { id: session_id } = await chatSession(question);
 
-    const sender_id = getuserID();
-    const session_id = await chatSession();
-
-    // 1. Save user's message
     await chatMessage(session_id, question, "user", sender_id, 0);
-
-    // 2. Save AI's response
     const data = await chatMessage(
       session_id,
-      casualData.response || "Hey 👋",
+      casualData?.response || "Hey 👋",
       "ai",
       null,
       0,
     );
 
-    const chatMessage_id = data[0].id;
-    return [casualData.response || "Hey 👋", chatMessage_id];
+    return [casualData?.response || "Hey 👋", data[0].id];
   }
 
-  if (functionData.intent === "escalation") {
-    const sender_id = getuserID();
-    const session_id = await chatSession();
+  // ESCALATION
+  if (intent === "escalation") {
+    const { id: session_id } = await chatSession(question);
 
-    // 1. Save user's message
     await chatMessage(session_id, question, "user", sender_id, 0);
 
-    // 2. Assign agent
-    await assignAgent();
+    await assignAgent(session_id);
 
-    // 3. Save AI's response
-    const botMsgText =
-      "A support agent is being assigned to you. Please wait a moment.";
-    const data = await chatMessage(session_id, botMsgText, "ai", null, 0);
+    const msg = "A support agent is being assigned to you. Please wait.";
+    const data = await chatMessage(session_id, msg, "ai", null, 0);
 
-    const chatMessage_id = data[0].id;
-    return [botMsgText, chatMessage_id];
-  }
+    return [msg, data[0].id];
+  } 
 
-  if (functionData.intent === "harmful") {
-    const categories = functionData.categories;
-    const flaggedCategory = Object.keys(categories).find(
-      (key) => categories[key] === true,
+  // HARMFUL
+  if (intent === "harmful") {
+    const category = Object.keys(functionData.categories || {}).find(
+      (k) => functionData.categories[k],
     );
 
-    await moderation(question, flaggedCategory);
-    return ["Message blocked due to policy violation. Please try again.", null];
+    const { id: session_id } = await chatSession(question);
+
+    await moderation(session_id, question, category);
+
+    return ["Message blocked due to policy violation.", null];
   }
 
-  // Default / Support
+  // DEFAULT (RAG)
   return await handleSubmit(question);
 }
-
-// assign the support agen
-export async function assignAgent(chatMessage_id?: string | number) {
-  console.log("i am beign called");
-  if (chatMessage_id) {
-    await ai_training_log(chatMessage_id);
-    await analytic_event();
-  }
-  const session_id = await chatSession();
-  const { data: agent, error: agentError } = await supabase
-    .from("support_agents")
-    .select("*")
-    .eq("status", "active")
-    .limit(1); 
-
-  console.log(agent,"this is agent data")
-  if (agentError || !agent || agent.length === 0) { 
-    console.log("No agent available");
-    return "No agent available";
-  }
-  console.log(agent);
-  const agent_id = agent[0].id;
-  console.log(agent_id, session_id);
-
-  const { error } = await supabase
-    .from("chat_sessions")
-    .update({ assigned_agent_id: agent_id })
-    .eq("id", session_id)
-    .select();
-  if (error) {
-    console.error("Error assigning agent:", error); 
-    return "Problem Assigning";
-  }   
-  const {data} = await supabase
-    .from("support_agents")
-    .update({ status: "busy" })
-    .eq("id", agent_id)
-    .select();
-  console.log(data,"this is data")
-  console.log("Agent assigned");
-  return "Agent assigned";
-}
-
-// add data into the trainign log table
-export const ai_training_log = async (chatMessage_id: string | number) => {
-  const { error } = await supabase
-    .from("ai_training_logs")
-    .insert({
-      session_id: await chatSession(),
-      message_id: chatMessage_id,
-      issue_type: "Low confidence",
-    })
-    .select();
-
-  if (error) {
-    console.error("Error creating AI training log:", error);
-  }
-};
-
-// add data to analytic event
-export const analytic_event = async () => {
-  await supabase.from("analytics_events").insert({
-    event_type: "Assign Agent",
-    user_id: getuserID(),
-  });
-};
-
-// add data into the moderation table
-export const moderation = async (message: string, catogery?: string) => {
-  const { error } = await supabase.from("moderation_logs").insert({
-    session_id: await chatSession(),
-    message,
-    flagged_reason: catogery,
-  });
-  console.log("data from the moderation table", error);
-};
