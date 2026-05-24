@@ -2,10 +2,9 @@ import {
   CSSProperties,
   Fragment,
   ReactNode,
-  useEffect,
   useMemo,
-  useRef,
   useState,
+  useEffect,
 } from "react";
 
 // material-ui
@@ -64,7 +63,6 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   getGroupedRowModel,
-  getExpandedRowModel,
   flexRender,
   useReactTable,
   ColumnDef,
@@ -85,29 +83,48 @@ import {
   CSVExport,
   DebouncedInput,
   EmptyTable,
-  EditRow,
   Filter,
   HeaderSort,
   IndeterminateCheckbox,
   RowSelection,
   TablePagination,
-  SelectColumnVisibility,
 } from "components/third-party/react-table";
+import {
+  RowEditProvider,
+  EditRowCells,
+  EditRowExpandedRow,
+} from "components/third-party/react-table/EditRow";
 
-import TableData from "data/react-table";
-// import makeData from "data/react-table";
-import ExpandingUserDetail from "sections/tables/react-table/ExpandingUserDetail";
+// import TableData from "data/react-table";
+import { getKnowledgeBaseData } from "data/react-table";
 
 // types
 import { TableDataProps } from "types/table";
+import { updateKnowledgeBaseRow } from "api/knowledgeBaseApi";
+import { deleteKnowledgeBaseRow } from "api/knowledgeBaseApi";
 
+import {
+  arrayToInput,
+  inputToArray,
+  normalizeSteps,
+} from "utils/knowledgeBaseTransform";
 // assets
-import DownOutlined from "@ant-design/icons/DownOutlined";
 import DragOutlined from "@ant-design/icons/DragOutlined";
 import GroupOutlined from "@ant-design/icons/GroupOutlined";
-import RightOutlined from "@ant-design/icons/RightOutlined";
-import StopOutlined from "@ant-design/icons/StopOutlined";
 import UngroupOutlined from "@ant-design/icons/UngroupOutlined";
+
+const HIDDEN_BY_DEFAULT_COLUMNS = [
+  "question",
+  "tags",
+  "priority",
+  "visibility",
+  "answer",
+  "content",
+  "keywords",
+  "common_user_phrases",
+  "steps",
+  "is_active",
+];
 
 const fuzzyFilter: FilterFn<TableDataProps> = (
   row,
@@ -141,8 +158,14 @@ const nonOrderableColumnId: UniqueIdentifier[] = [
 
 function DraggableTableCell({
   header,
+  categoryFilter,
+  setCategoryFilter,
+  categories,
 }: {
   header: Header<TableDataProps, unknown>;
+  categoryFilter: string;
+  setCategoryFilter: (value: string) => void;
+  categories: string[];
 }) {
   const { attributes, isDragging, listeners, setNodeRef, transform } =
     useSortable({
@@ -191,8 +214,31 @@ function DraggableTableCell({
           >
             {flexRender(header.column.columnDef.header, header.getContext())}
           </Box>
-          {header.column.getCanSort() && (
-            <HeaderSort column={header.column} sort />
+          {header.column.id === "category" ? (
+            <Select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              displayEmpty
+              size="small"
+              input={<OutlinedInput />}
+              slotProps={{ input: { "aria-label": "Category Filter" } }}
+              sx={{
+                minWidth: 140,
+                "& .MuiSelect-select": { py: 0.5, fontSize: "0.75rem" },
+              }}
+            >
+              <MenuItem value="">All Categories</MenuItem>
+              {categories.map((category) => (
+                <MenuItem key={category} value={category}>
+                  {category}
+                </MenuItem>
+              ))}
+            </Select>
+          ) : (
+            header.column.getCanSort() && (
+              <HeaderSort column={header.column} sort />
+            )
           )}
         </Stack>
       )}
@@ -285,20 +331,6 @@ function DraggableRow({
   );
 }
 
-// ==============================|| REACT TABLE - EXPANDER BUTTON ||============================== //
-
-function ExpanderButton({ row }: { row: Row<TableDataProps> }) {
-  return (
-    <IconButton
-      color={row.getIsExpanded() ? "primary" : "secondary"}
-      onClick={row.getToggleExpandedHandler()}
-      size="small"
-    >
-      {row.getIsExpanded() ? <DownOutlined /> : <RightOutlined />}
-    </IconButton>
-  );
-}
-
 // ==============================|| REACT TABLE - UMBRELLA ||============================== //
 
 export default function UmbrellaTable() {
@@ -350,25 +382,26 @@ export default function UmbrellaTable() {
         accessorFn: (row) => row.id,
         enableColumnFilter: false,
         enableGrouping: false,
+        enableSorting: false,
         meta: { align: "center" },
       },
       {
         id: "title",
         header: "Title",
         footer: "Title",
-        // maps to `title: string` on TableDataProps
         accessorKey: "title",
         dataType: "text",
         enableGrouping: false,
+        enableSorting: false,
       },
       {
         id: "type",
         header: "Type",
         footer: "Type",
-        // maps to `type: string` on TableDataProps
         accessorKey: "type",
         dataType: "text",
         enableGrouping: true,
+        enableSorting: false,
         filterFn: fuzzyFilter,
         sortingFn: fuzzySort,
       },
@@ -376,11 +409,11 @@ export default function UmbrellaTable() {
         id: "category",
         header: "Category",
         footer: "Category",
-        // maps to `category: string` on TableDataProps
         accessorKey: "category",
         dataType: "text",
         enableGrouping: true,
-        filterFn: fuzzyFilter,
+        enableColumnFilter: false,
+        enableSorting: false,
         sortingFn: fuzzySort,
       },
       {
@@ -458,6 +491,7 @@ export default function UmbrellaTable() {
         header: "Steps",
         footer: "Steps",
         accessorKey: "steps",
+        dataType: "steps",
         enableGrouping: false,
         enableColumnFilter: false,
         // Convert array to string so React never sees a raw object
@@ -496,7 +530,23 @@ export default function UmbrellaTable() {
     [],
   );
 
-  const [data, setData] = useState<TableDataProps[]>(TableData);
+  const [data, setData] = useState<TableDataProps[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const result = await getKnowledgeBaseData();
+        setData(result);
+      } catch (err) {
+        console.error("Error during loding data from react-table", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
   const [columnOrder, setColumnOrder] = useState<string[]>(() =>
     columns.map((c) => c.id!),
   );
@@ -512,15 +562,24 @@ export default function UmbrellaTable() {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [grouping, setGrouping] = useState<GroupingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState({});
+  const [columnVisibility] = useState<Record<string, boolean>>(() =>
+    HIDDEN_BY_DEFAULT_COLUMNS.reduce(
+      (acc, columnId) => ({ ...acc, [columnId]: false }),
+      {},
+    ),
+  );
 
-  // Status filter maps to `visibility` ("public" | "private") on TableDataProps
-  const [visibilityFilter, setVisibilityFilter] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+
+  const categories = useMemo(
+    () => [...new Set(data.map((row) => row.category))].sort(),
+    [data],
+  );
 
   const filteredData = useMemo(() => {
-    if (!visibilityFilter) return data;
-    return data.filter((row) => row.visibility === visibilityFilter);
-  }, [visibilityFilter, data]);
+    if (!categoryFilter) return data;
+    return data.filter((row) => row.category === categoryFilter);
+  }, [categoryFilter, data]);
 
   const table = useReactTable({
     data: filteredData,
@@ -543,9 +602,6 @@ export default function UmbrellaTable() {
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     onColumnOrderChange: setColumnOrder,
-    onColumnVisibilityChange: setColumnVisibility,
-    // getRowCanExpand: () => true,
-    // getExpandedRowModel: getExpandedRowModel(),
     getGroupedRowModel: getGroupedRowModel(),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -555,9 +611,6 @@ export default function UmbrellaTable() {
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
     globalFilterFn: fuzzyFilter,
-    debugTable: true,
-    debugHeaders: true,
-    debugColumns: true,
   });
 
   const headers: LabelKeyObject[] = [];
@@ -608,43 +661,9 @@ export default function UmbrellaTable() {
   );
   const groupedColumns = table.getState().grouping;
 
-  // Hide columns that are less relevant by default
-  useEffect(
-    () =>
-      setColumnVisibility({
-        id: false,
-        tags: false,
-        keywords: false,
-        common_user_phrases: false,
-        answer: false,
-      }),
-    [],
-  );
-
-  const filteredColumns = table
-    .getAllColumns()
-    .filter((col) => !nonOrderableColumnId.includes(col.id));
-
-  useEffect(() => {
-    const anyDataColumnVisible = filteredColumns.some((col) =>
-      col.getIsVisible?.(),
-    );
-    if (!anyDataColumnVisible) return;
-
-    const anyUtilityHidden = nonOrderableColumnId.some(
-      (utilityId) =>
-        table.getColumn(String(utilityId))?.getIsVisible?.() === false,
-    );
-    if (!anyUtilityHidden) return;
-
-    setColumnVisibility((prev: Record<string, boolean>) => {
-      const next: Record<string, boolean> = { ...prev };
-      nonOrderableColumnId.forEach((utilityId) => {
-        next[utilityId as string] = true;
-      });
-      return next;
-    });
-  }, [columnVisibility, filteredColumns, table]);
+  if (loading) {
+    return <div>Loading</div>;
+  }
 
   return (
     <MainCard content={false}>
@@ -668,19 +687,6 @@ export default function UmbrellaTable() {
           direction={{ xs: "column", sm: "row" }}
           sx={{ alignItems: "center", gap: 2, width: { xs: 1, sm: "auto" } }}
         >
-          {/* Filter by visibility: "public" | "private" */}
-          <Select
-            value={visibilityFilter}
-            onChange={(event) => setVisibilityFilter(event.target.value)}
-            displayEmpty
-            size="small"
-            input={<OutlinedInput />}
-            slotProps={{ input: { "aria-label": "Visibility Filter" } }}
-          >
-            <MenuItem value="">All Visibility</MenuItem>
-            <MenuItem value="public">Public</MenuItem>
-            <MenuItem value="private">Private</MenuItem>
-          </Select>
           <Stack sx={{ alignItems: "flex-end" }}>
             <RowSelection selected={Object.keys(rowSelection).length} />
             <Stack
@@ -691,19 +697,6 @@ export default function UmbrellaTable() {
                 width: { xs: 1, sm: "auto" },
               }}
             >
-              <SelectColumnVisibility
-                {...{
-                  getVisibleLeafColumns: () =>
-                    table
-                      .getVisibleLeafColumns()
-                      .filter((col) => !nonOrderableColumnId.includes(col.id)),
-                  getIsAllColumnsVisible: () =>
-                    filteredColumns.every((col) => col.getIsVisible?.()),
-                  getToggleAllColumnsVisibilityHandler:
-                    table.getToggleAllColumnsVisibilityHandler,
-                  getAllColumns: () => filteredColumns,
-                }}
-              />
               <CSVExport
                 {...{
                   data:
@@ -746,7 +739,13 @@ export default function UmbrellaTable() {
                       )
                         return null;
                       return (
-                        <DraggableTableCell key={header.id} header={header} />
+                        <DraggableTableCell
+                          key={header.id}
+                          header={header}
+                          categoryFilter={categoryFilter}
+                          setCategoryFilter={setCategoryFilter}
+                          categories={categories}
+                        />
                       );
                     })}
                   </SortableContext>
@@ -818,24 +817,91 @@ export default function UmbrellaTable() {
 
                       return (
                         <Fragment key={row.id}>
-                          <DraggableRow
+                          <RowEditProvider
                             row={row}
-                            groupedColumns={groupedColumns}
-                          >
-                            <EditRow
-                              row={row}
-                              onSave={(updatedData) => {
+                            hiddenColumnIds={HIDDEN_BY_DEFAULT_COLUMNS}
+                            onDelete={async (id) => {
+                              try {
+                                await deleteKnowledgeBaseRow(id); // your supabase delete function
+                                setData((prev) =>
+                                  prev.filter((item) => item.id !== id),
+                                );
+                              } catch (err) {
+                                console.error("Failed to delete row", err);
+                              }
+                            }}
+                            onSave={async (updatedData) => {
+                              try {
+                                const payload: Partial<TableDataProps> = {
+                                  title: String(updatedData.title || ""),
+                                  type: String(updatedData.type || ""),
+                                  category: String(updatedData.category || ""),
+                                  question: String(updatedData.question || ""),
+                                  answer: String(updatedData.answer || ""),
+                                  content: String(updatedData.content || ""),
+                                  priority: Number(updatedData.priority),
+                                  is_active:
+                                    updatedData.is_active === true ||
+                                    updatedData.is_active === "true",
+                                  visibility: updatedData.visibility as
+                                    | "public"
+                                    | "private",
+
+                                  // postgres text[] — convert comma string back to array
+                                  tags: inputToArray(
+                                    String(updatedData.tags || ""),
+                                  ),
+                                  keywords: inputToArray(
+                                    String(updatedData.keywords || ""),
+                                  ),
+                                  common_user_phrases: inputToArray(
+                                    String(
+                                      updatedData.common_user_phrases || "",
+                                    ),
+                                  ),
+
+                                  // jsonb
+                                  steps: normalizeSteps(updatedData.steps),
+                                };
+
+                                // remove undefined values
+                                const cleanedPayload = Object.fromEntries(
+                                  Object.entries(payload).filter(
+                                    ([_, value]) => value !== undefined,
+                                  ),
+                                );
+
+                                // supabase update
+                                const savedRow = await updateKnowledgeBaseRow(
+                                  row.original.id,
+                                  cleanedPayload,
+                                );
+
+                                // update local table state
                                 setData((prev) =>
                                   prev.map((item) =>
                                     item.id === row.original.id
-                                      ? { ...item, ...updatedData }
+                                      ? savedRow
                                       : item,
                                   ),
                                 );
-                              }}
+                              } catch (err) {
+                                console.error("Failed to update row", err);
+                              }
+                            }}
+                          >
+                            <DraggableRow
+                              row={row}
                               groupedColumns={groupedColumns}
+                            >
+                              <EditRowCells groupedColumns={groupedColumns} />
+                            </DraggableRow>
+                            <EditRowExpandedRow
+                              colSpan={table.getVisibleLeafColumns().length}
+                              hiddenColumnIds={HIDDEN_BY_DEFAULT_COLUMNS}
+                              columnLabels={{}}
                             />
-                          </DraggableRow>
+                          </RowEditProvider>
                         </Fragment>
                       );
                     })}
