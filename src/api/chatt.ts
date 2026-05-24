@@ -70,19 +70,26 @@ export const chatSession = async (message?: string) => {
       const user_id = getuserID();
       if (!user_id) throw new Error("No user id");
 
-      const { data: existingSession } = await supabase
+      const { data: existingSessions, error: fetchError } = await supabase
         .from("chat_sessions")
-        .select("id, user_name_extracted")
+        .select("id, name")
         .eq("user_id", user_id)
         .eq("status", "open")
-        .order("created_at", { ascending: false }) // created_at is always set; safer than last_message_at
-        .limit(1)
-        .maybeSingle();
+        .limit(1);  
+
+      if (fetchError) {
+        console.error("Error fetching existing chat session:", fetchError);
+        throw new Error(fetchError.message || "Failed to fetch existing chat session");
+      }
+
+      const existingSession = Array.isArray(existingSessions)
+        ? existingSessions[0]
+        : existingSessions;
 
       if (existingSession) {
         cachedSessionId = existingSession.id;
         // Mark done if already extracted; otherwise try on first real message
-        if (existingSession.user_name_extracted) {
+        if (existingSession.name) {
           nameCheckDone = true;
         } else if (message && !nameCheckDone) {
           nameCheckDone = true;
@@ -166,7 +173,9 @@ export const ai_training_log = async (
 // =========================
 // ANALYTICS
 // =========================
-export const analytic_event = async (user_id: string) => {
+export const analytic_event = async (user_id: string | null) => {
+  if (!user_id) return;
+
   await supabase.from("analytics_events").insert({
     event_type: "Assign Agent",
     user_id,
