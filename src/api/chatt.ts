@@ -268,12 +268,24 @@ export const handleSubmit = async (message: string) => {
     ? matchData.map((d: any) => d.content).join("\n\n")
     : "";
 
+  // Fetch user's name from session to personalize responses
+  const { data: sessionData } = await supabase
+    .from("chat_sessions")
+    .select("name")
+    .eq("id", session_id)
+    .single();
+
+  const userName = sessionData?.name;
+  const nameInstruction = userName
+    ? `The user's name is ${userName}. Please use their name when addressing them.`
+    : "";
+
   const completion = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
     messages: [
       {
         role: "system",
-        content: "You are a helpful support assistant. Answer only using context.",
+        content: `You are a helpful support assistant. Answer only using context. ${nameInstruction}`,
       },
       {
         role: "user",
@@ -363,21 +375,32 @@ export async function sendChatMessage({ question }: { question: string }) {
 
     await assignAgent(session_id);
 
-    const msg = "A support agent is being assigned to you. Please wait.";
+    // Fetch user's name to personalize escalation message
+    const { data: sessionData } = await supabase
+      .from("chat_sessions")
+      .select("name")
+      .eq("id", session_id)
+      .single();
+
+    const userName = sessionData?.name;
+    const msg = userName
+      ? `Hi ${userName}, a support agent is being assigned to you. Please wait a moment.`
+      : "A support agent is being assigned to you. Please wait.";
+
     const data = await chatMessage(session_id, msg, "ai", null, 0);
 
     return [msg, data[0].id];
-  } 
+  }
 
   // HARMFUL
   if (intent === "harmful") {
     const category = Object.keys(functionData.categories || {}).find(
-      (k) => functionData.categories[k],
+      (k: string) => functionData.categories[k],
     );
 
-    const { id: session_id } = await chatSession(question);
+    const { id: sessionIdHarmful } = await chatSession(question);
 
-    await moderation(session_id, question, category);
+    await moderation(sessionIdHarmful, question, category);
 
     return ["Message blocked due to policy violation.", null];
   }
