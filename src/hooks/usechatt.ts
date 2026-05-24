@@ -12,7 +12,7 @@ export function useChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      text: "Hello 👋 How can I help you today?",
+      text: "Hello, What is your name?. How can I help you today?",
       sender: "other",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -58,7 +58,7 @@ export function useChat() {
         setMessages([
           {
             id: "welcome",
-            text: "Hello 👋 How can I help you today?",
+            text: "Hello, What is your name?. How can I help you today?",
             sender: "other",
             time: new Date(
               dbMessages[0].created_at || new Date(),

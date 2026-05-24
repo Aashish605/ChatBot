@@ -14,42 +14,68 @@ export const getuserID = () => {
   }
 };
 
+let activeSessionRequest: Promise<string> | null = null;
+
 //Find the chat session if not found create new session
 export const chatSession = async () => {
-  const user_id = getuserID();
+  if (activeSessionRequest) {
+    return activeSessionRequest;
+  } 
 
-  const { data, error } = await supabase
-    .from("chat_sessions")
-    .select("id")
-    .eq("user_id", user_id)
-    .eq("status", "open")
-    .order("last_message_at", { ascending: false })
-    .limit(1);
+  activeSessionRequest = (async () => {
+    try {
+      const user_id = getuserID();
 
-  if (error) {
-    console.error("Error fetching chat session:", error);
-    throw new Error(error.message || "Failed to fetch chat session");
-  }
-  if (data && data.length > 0) {
-    return data[0].id;
-  }
+      const { data: existingSession, error: fetchError } = await supabase
+        .from("chat_sessions")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("status", "open")
+        .order("last_message_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-  // 3. Otherwise, create a new one
-  const { data: newSession, error: createError } = await supabase
-    .from("chat_sessions")
-    .insert({
-      user_id,
-      status: "open",
-      source: "web",
-    })
-    .select("id"); // Optimization: Only select the 'id' back
+      if (fetchError) {
+        console.error(fetchError);
+        throw new Error(fetchError.message);
+      }
 
-  if (createError || !newSession || newSession.length === 0) {
-    console.error("Error creating chat session:", createError);
-    throw new Error(createError?.message || "Failed to create chat session");
-  }
+      if (existingSession) {
+        return existingSession.id;
+      }
 
-  return newSession[0].id;
+      const { data: newSession, error: createError } = await supabase
+        .from("chat_sessions")
+        .insert({
+          user_id,
+          status: "open",
+          source: "web",
+        })
+        .select("id")
+        .single();
+
+      if (createError) {
+        const { data: retrySession } = await supabase
+          .from("chat_sessions")
+          .select("id")
+          .eq("user_id", user_id)
+          .eq("status", "open")
+          .maybeSingle();
+
+        if (retrySession) {
+          return retrySession.id;
+        }
+
+        throw new Error(createError.message);
+      }
+
+      return newSession.id;
+    } finally {
+      activeSessionRequest = null;
+    }
+  })();
+
+  return activeSessionRequest;
 };
 
 // insert the data in message table
@@ -260,6 +286,7 @@ export async function sendChatMessage({ question }: { question: string }) {
 
 // assign the support agen
 export async function assignAgent(chatMessage_id?: string | number) {
+  console.log("i am beign called");
   if (chatMessage_id) {
     await ai_training_log(chatMessage_id);
     await analytic_event();
@@ -269,8 +296,10 @@ export async function assignAgent(chatMessage_id?: string | number) {
     .from("support_agents")
     .select("*")
     .eq("status", "active")
-    .limit(1);
-  if (agentError || !agent || agent.length === 0) {
+    .limit(1); 
+
+  console.log(agent,"this is agent data")
+  if (agentError || !agent || agent.length === 0) { 
     console.log("No agent available");
     return "No agent available";
   }
@@ -284,14 +313,15 @@ export async function assignAgent(chatMessage_id?: string | number) {
     .eq("id", session_id)
     .select();
   if (error) {
-    console.error("Error assigning agent:", error);
+    console.error("Error assigning agent:", error); 
     return "Problem Assigning";
-  }
-  await supabase
+  }   
+  const {data} = await supabase
     .from("support_agents")
     .update({ status: "busy" })
     .eq("id", agent_id)
     .select();
+  console.log(data,"this is data")
   console.log("Agent assigned");
   return "Agent assigned";
 }
