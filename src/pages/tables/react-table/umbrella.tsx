@@ -1,30 +1,21 @@
-import {
-  CSSProperties,
-  Fragment,
-  ReactNode,
-  useMemo,
-  useState,
-  useEffect,
-} from "react";
+import { Fragment, useMemo, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 
-// material-ui
 import { useTheme } from "@mui/material/styles";
-import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
-import MenuItem from "@mui/material/MenuItem";
-import OutlinedInput from "@mui/material/OutlinedInput";
-import Select from "@mui/material/Select";
-import Stack from "@mui/material/Stack";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableFooter from "@mui/material/TableFooter";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Box from "@mui/material/Box";
+import {
+  Box,
+  Button,
+  Divider,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableFooter,
+  TableHead,
+  TableRow,
+} from "@mui/material";
 
-// third-party
 import {
   DndContext,
   KeyboardSensor,
@@ -44,16 +35,8 @@ import {
   arrayMove,
   SortableContext,
   horizontalListSortingStrategy,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-
-import {
-  compareItems,
-  rankItem,
-  RankingInfo,
-} from "@tanstack/match-sorter-utils";
 import {
   getCoreRowModel,
   getFilteredRowModel,
@@ -72,19 +55,20 @@ import {
   FilterFn,
   SortingFn,
   sortingFns,
-  Header,
-  Row,
 } from "@tanstack/react-table";
+import {
+  compareItems,
+  rankItem,
+  RankingInfo,
+} from "@tanstack/match-sorter-utils";
 import { LabelKeyObject } from "react-csv/lib/core";
 
-// project imports
 import MainCard from "components/MainCard";
 import {
   CSVExport,
   DebouncedInput,
   EmptyTable,
   Filter,
-  HeaderSort,
   IndeterminateCheckbox,
   RowSelection,
   TablePagination,
@@ -94,25 +78,15 @@ import {
   EditRowCells,
   EditRowExpandedRow,
 } from "components/third-party/react-table/EditRow";
-
-// import TableData from "data/react-table";
-import { getKnowledgeBaseData } from "data/react-table";
-
-// types
-import { TableDataProps } from "types/table";
-import { updateKnowledgeBaseRow } from "api/knowledgeBaseApi";
-import { deleteKnowledgeBaseRow } from "api/knowledgeBaseApi";
+import DraggableTableCell from "components/third-party/react-table/DraggableTableCell";
+import DraggableRow from "components/third-party/react-table/DraggableRow";
 import DeleteConfirmDialog from "components/third-party/react-table/DeleteConfirmDialog";
 import TableToast from "components/third-party/react-table/TableToast";
-import { useTableToast } from "components/third-party/react-table/useTableToast";
 
-import {
-  arrayToInput,
-  inputToArray,
-  normalizeSteps,
-} from "utils/knowledgeBaseTransform";
-// assets
-import DragOutlined from "@ant-design/icons/DragOutlined";
+import { useKnowledgeBase } from "hooks/useKnowledgeBaseTable";
+import { TableDataProps } from "types/table";
+
+import PlusOutlined from "@ant-design/icons/PlusOutlined";
 import GroupOutlined from "@ant-design/icons/GroupOutlined";
 import UngroupOutlined from "@ant-design/icons/UngroupOutlined";
 
@@ -128,6 +102,8 @@ const HIDDEN_BY_DEFAULT_COLUMNS = [
   "steps",
   "is_active",
 ];
+
+const nonOrderableColumnId: UniqueIdentifier[] = ["drag-handle", "select"];
 
 const fuzzyFilter: FilterFn<TableDataProps> = (
   row,
@@ -151,211 +127,29 @@ const fuzzySort: SortingFn<TableDataProps> = (rowA, rowB, columnId) => {
   return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir;
 };
 
-const nonOrderableColumnId: UniqueIdentifier[] = [
-  "drag-handle",
-  // "expander",
-  "select",
-];
-
-// ==============================|| REACT TABLE - DRAGGABLE HEADER ||============================== //
-
-function DraggableTableCell({
-  header,
-  categoryFilter,
-  setCategoryFilter,
-  categories,
-}: {
-  header: Header<TableDataProps, unknown>;
-  categoryFilter: string;
-  setCategoryFilter: (value: string) => void;
-  categories: string[];
-}) {
-  const { attributes, isDragging, listeners, setNodeRef, transform } =
-    useSortable({
-      id: header.column.id,
-    });
-
-  const style: CSSProperties = {
-    opacity: isDragging ? 0.7 : 1,
-    position: "relative",
-    transform: CSS.Translate.toString(transform),
-    transition: "width transform 0.2s ease-in-out",
-    whiteSpace: "nowrap",
-    width: header.column.getSize(),
-    zIndex: isDragging ? 1 : 0,
-  };
-
-  return (
-    <TableCell
-      colSpan={header.colSpan}
-      ref={setNodeRef}
-      style={style}
-      {...header.column.columnDef.meta}
-    >
-      {header.isPlaceholder ? null : (
-        <Stack direction="row" sx={{ gap: 1, alignItems: "center" }}>
-          {header.column.getCanGroup() && (
-            <IconButton
-              color={header.column.getIsGrouped() ? "error" : "primary"}
-              onClick={header.column.getToggleGroupingHandler()}
-              size="small"
-              sx={{ p: 0, width: 24, height: 24, fontSize: "1rem", mr: 0.75 }}
-            >
-              {header.column.getIsGrouped() ? (
-                <UngroupOutlined />
-              ) : (
-                <GroupOutlined />
-              )}
-            </IconButton>
-          )}
-          <Box
-            {...(!nonOrderableColumnId.includes(header.id) && {
-              ...attributes,
-              ...listeners,
-              sx: { cursor: isDragging ? "grabbing" : "grab" },
-            })}
-          >
-            {flexRender(header.column.columnDef.header, header.getContext())}
-          </Box>
-          {header.column.id === "category" ? (
-            <Select
-              value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
-              onClick={(event) => event.stopPropagation()}
-              displayEmpty
-              size="small"
-              input={<OutlinedInput />}
-              slotProps={{ input: { "aria-label": "Category Filter" } }}
-              sx={{
-                minWidth: 140,
-                "& .MuiSelect-select": { py: 0.5, fontSize: "0.75rem" },
-              }}
-            >
-              <MenuItem value="">All Categories</MenuItem>
-              {categories.map((category) => (
-                <MenuItem key={category} value={category}>
-                  {category}
-                </MenuItem>
-              ))}
-            </Select>
-          ) : (
-            header.column.getCanSort() && (
-              <HeaderSort column={header.column} sort />
-            )
-          )}
-        </Stack>
-      )}
-    </TableCell>
-  );
-}
-
-// ==============================|| REACT TABLE - DRAGGABLE ROW ||============================== //
-
-function DraggableRow({
-  children,
-  row,
-  groupedColumns,
-}: {
-  children: ReactNode;
-  row: Row<TableDataProps>;
-  groupedColumns: string[];
-}) {
-  // `id` is now `number` on TableDataProps — cast to string for DnD UniqueIdentifier compatibility
-  const {
-    transform,
-    transition,
-    setNodeRef,
-    isDragging,
-    attributes,
-    listeners,
-    setActivatorNodeRef,
-  } = useSortable({
-    id: String(row.original.id),
-  });
-
-  const nonEditableCells = row
-    .getVisibleCells()
-    .filter((cell) => nonOrderableColumnId.includes(cell.column.id));
-
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 1 : 0,
-    position: "relative",
-  };
-
-  const isGrouped = groupedColumns.length > 0;
-
-  return (
-    <TableRow ref={setNodeRef} style={style}>
-      {isGrouped && (
-        <TableCell
-          colSpan={groupedColumns.length}
-          sx={{ bgcolor: "error.lighter" }}
-        />
-      )}
-      {nonEditableCells.map((cell) => {
-        if (cell.column.id === "drag-handle") {
-          if (!isGrouped) {
-            return (
-              <TableCell key={cell.id} sx={{ width: 58 }}>
-                <IconButton
-                  {...attributes}
-                  {...listeners}
-                  ref={setActivatorNodeRef}
-                  size="small"
-                  color="secondary"
-                  sx={{
-                    p: 0,
-                    width: 24,
-                    height: 24,
-                    fontSize: "1rem",
-                    cursor: isDragging ? "grabbing" : "grab",
-                  }}
-                >
-                  <DragOutlined />
-                </IconButton>
-              </TableCell>
-            );
-          } else {
-            return null;
-          }
-        }
-
-        return (
-          <TableCell key={cell.id} {...cell.column.columnDef.meta}>
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </TableCell>
-        );
-      })}
-      {children}
-    </TableRow>
-  );
-}
-
-// ==============================|| REACT TABLE - UMBRELLA ||============================== //
-
 export default function UmbrellaTable() {
   const theme = useTheme();
+
+  const {
+    data,
+    loading,
+    filteredData,
+    dataIds,
+    categories,
+    categoryFilter,
+    setCategoryFilter,
+    deleteTarget,
+    setDeleteTarget,
+    handleConfirmDelete,
+    handleSave,
+    handleSwapPriority,
+    toast,
+    handleToastClose,
+  } = useKnowledgeBase();
 
   const columns = useMemo<ColumnDef<TableDataProps, unknown>[]>(
     () => [
       { id: "drag-handle", size: 60 },
-      // {
-      //   id: "expander",
-      //   enableGrouping: false,
-      //   header: () => null,
-      //   cell: ({ row }) =>
-      //     row.getCanExpand() ? (
-      //       <ExpanderButton row={row} />
-      //     ) : (
-      //       <IconButton color="secondary" size="small" disabled>
-      //         <StopOutlined />
-      //       </IconButton>
-      //     ),
-      //   size: 60,
-      // },
       {
         id: "select",
         enableGrouping: false,
@@ -376,12 +170,10 @@ export default function UmbrellaTable() {
         ),
         size: 60,
       },
-      // ── Columns mapped to TableDataProps fields ──────────────────────────
       {
         id: "id",
         title: "Id",
         header: "#",
-        // `id` is number on TableDataProps
         accessorFn: (row) => row.id,
         enableColumnFilter: false,
         enableGrouping: false,
@@ -417,13 +209,11 @@ export default function UmbrellaTable() {
         enableGrouping: true,
         enableColumnFilter: false,
         enableSorting: false,
-        sortingFn: fuzzySort,
       },
       {
         id: "question",
         header: "Question",
         footer: "Question",
-        // maps to `question: string` on TableDataProps
         accessorKey: "question",
         dataType: "text",
         enableGrouping: false,
@@ -432,7 +222,6 @@ export default function UmbrellaTable() {
         id: "tags",
         header: "Tags",
         footer: "Tags",
-        // maps to `tags: string` on TableDataProps
         accessorKey: "tags",
         dataType: "text",
         enableGrouping: false,
@@ -441,7 +230,6 @@ export default function UmbrellaTable() {
         id: "priority",
         header: "Priority",
         footer: "Priority",
-        // maps to `priority: number` on TableDataProps
         accessorKey: "priority",
         dataType: "number",
         meta: { align: "right" },
@@ -451,7 +239,6 @@ export default function UmbrellaTable() {
         id: "visibility",
         header: "Visibility",
         footer: "Visibility",
-        // maps to `visibility: "public" | "private"` on TableDataProps
         accessorKey: "visibility",
         dataType: "select",
         enableGrouping: true,
@@ -488,7 +275,6 @@ export default function UmbrellaTable() {
         dataType: "text",
         enableGrouping: false,
       },
-
       {
         id: "steps",
         header: "Steps",
@@ -497,7 +283,6 @@ export default function UmbrellaTable() {
         dataType: "steps",
         enableGrouping: false,
         enableColumnFilter: false,
-        // Convert array to string so React never sees a raw object
         accessorFn: (row) =>
           row.steps.map((s, i) => `${i + 1}. ${s.text}`).join(" | "),
         cell: ({ row }) => {
@@ -518,7 +303,6 @@ export default function UmbrellaTable() {
         id: "is_active",
         header: "Active",
         footer: "Active",
-        // maps to `is_active: boolean` on TableDataProps
         accessorKey: "is_active",
         dataType: "select",
         enableGrouping: true,
@@ -533,36 +317,9 @@ export default function UmbrellaTable() {
     [],
   );
 
-  const [data, setData] = useState<TableDataProps[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast, showToast, handleToastClose } = useTableToast();
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const result = await getKnowledgeBaseData();
-        setData(result);
-      } catch (err) {
-        console.error("Error during loding data from react-table", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
-  }, []);
-
   const [columnOrder, setColumnOrder] = useState<string[]>(() =>
     columns.map((c) => c.id!),
   );
-
-  // `id` is number — stringify for DnD UniqueIdentifier
-  const dataIds = useMemo<UniqueIdentifier[]>(
-    () => data.map((row) => String(row.id)),
-    [data],
-  );
-
   const [rowSelection, setRowSelection] = useState({});
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -575,36 +332,9 @@ export default function UmbrellaTable() {
     ),
   );
 
-  // const [categoryFilter, setCategoryFilter] = useState("");
-
-  const categories = useMemo(
-    () => [...new Set(data.map((row) => row.category))].sort(),
-    [data],
-  );
-
-  const filteredData = useMemo(() => {
-    if (!categoryFilter) return data;
-    return data.filter((row) => row.category === categoryFilter);
-  }, [categoryFilter, data]);
-
-  const handleConfirmDelete = async () => {
-    if (deleteTarget === null) return;
-    try {
-      await deleteKnowledgeBaseRow(deleteTarget);
-      setData((prev) => prev.filter((item) => item.id !== deleteTarget));
-      showToast("Row deleted successfully", "success");
-    } catch (err) {
-      console.error("Failed to delete row", err);
-      showToast("Failed to delete row", "error");
-    } finally {
-      setDeleteTarget(null);
-    }
-  };
-
   const table = useReactTable({
     data: filteredData,
     columns,
-    // `id` is number — convert to string for react-table row identity
     getRowId: (row) => String(row.id),
     state: {
       rowSelection,
@@ -658,15 +388,10 @@ export default function UmbrellaTable() {
     }
   }
 
-  function handleRowDragEnd(event: DragEndEvent) {
+  async function handleRowDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (active && over && active.id !== over.id) {
-      setData((data) => {
-        const oldIndex = dataIds.indexOf(active.id);
-        const newIndex = dataIds.indexOf(over.id);
-        return arrayMove(data, oldIndex, newIndex);
-      });
-    }
+    if (!active || !over || active.id === over.id) return;
+    await handleSwapPriority(active.id, over.id);
   }
 
   const columnSensors = useSensors(
@@ -679,11 +404,10 @@ export default function UmbrellaTable() {
     useSensor(TouchSensor, {}),
     useSensor(KeyboardSensor, {}),
   );
+
   const groupedColumns = table.getState().grouping;
 
-  if (loading) {
-    return <div>Loading</div>;
-  }
+  if (loading) return <div>Loading</div>;
 
   return (
     <MainCard content={false}>
@@ -717,6 +441,14 @@ export default function UmbrellaTable() {
                 width: { xs: 1, sm: "auto" },
               }}
             >
+              <Button
+                variant="contained"
+                startIcon={<PlusOutlined />}
+                component={RouterLink}
+                {...{ to: "/form" }}
+              >
+                Add New
+              </Button>
               <CSVExport
                 {...{
                   data:
@@ -736,7 +468,6 @@ export default function UmbrellaTable() {
         </Stack>
       </Stack>
 
-      {/* Column DnD Context */}
       <DndContext
         collisionDetection={closestCenter}
         modifiers={[restrictToHorizontalAxis]}
@@ -818,7 +549,6 @@ export default function UmbrellaTable() {
                                 cell.column.id === "drag-handle"
                               )
                                 return null;
-
                               return (
                                 <TableCell
                                   key={cell.id}
@@ -840,73 +570,10 @@ export default function UmbrellaTable() {
                           <RowEditProvider
                             row={row}
                             hiddenColumnIds={HIDDEN_BY_DEFAULT_COLUMNS}
-                            onDelete={(id) => {
-                              setDeleteTarget(id);
-                            }}
-                            onSave={async (updatedData) => {
-                              try {
-                                const payload: Partial<TableDataProps> = {
-                                  title: String(updatedData.title || ""),
-                                  type: String(updatedData.type || ""),
-                                  category: String(updatedData.category || ""),
-                                  question: String(updatedData.question || ""),
-                                  answer: String(updatedData.answer || ""),
-                                  content: String(updatedData.content || ""),
-                                  priority: Number(updatedData.priority),
-                                  is_active:
-                                    updatedData.is_active === true ||
-                                    updatedData.is_active === "true",
-                                  visibility: updatedData.visibility as
-                                    | "public"
-                                    | "private",
-
-                                  // postgres text[] — convert comma string back to array
-                                  tags: inputToArray(
-                                    String(updatedData.tags || ""),
-                                  ),
-                                  keywords: inputToArray(
-                                    String(updatedData.keywords || ""),
-                                  ),
-                                  common_user_phrases: inputToArray(
-                                    String(
-                                      updatedData.common_user_phrases || "",
-                                    ),
-                                  ),
-
-                                  // jsonb
-                                  steps: normalizeSteps(updatedData.steps),
-                                };
-
-                                // remove undefined values
-                                const cleanedPayload = Object.fromEntries(
-                                  Object.entries(payload).filter(
-                                    ([_, value]) => value !== undefined,
-                                  ),
-                                );
-
-                                // supabase update
-                                const savedRow = await updateKnowledgeBaseRow(
-                                  row.original.id,
-                                  cleanedPayload,
-                                );
-
-                                // update local table state
-                                setData((prev) =>
-                                  prev.map((item) =>
-                                    item.id === row.original.id
-                                      ? savedRow
-                                      : item,
-                                  ),
-                                );
-                                showToast(
-                                  "Row updated successfully",
-                                  "success",
-                                );
-                              } catch (err) {
-                                console.error("Failed to update row", err);
-                                showToast("Failed to update row", "error");
-                              }
-                            }}
+                            onDelete={(id) => setDeleteTarget(id)}
+                            onSave={(updatedData) =>
+                              handleSave(row.original.id, updatedData)
+                            }
                           >
                             <DraggableRow
                               row={row}
@@ -933,6 +600,7 @@ export default function UmbrellaTable() {
                 </TableRow>
               )}
             </TableBody>
+
             <TableFooter>
               {table.getFooterGroups().map((footerGroup) => (
                 <TableRow key={footerGroup.id}>
@@ -962,6 +630,7 @@ export default function UmbrellaTable() {
           </Table>
         </TableContainer>
       </DndContext>
+
       <Divider />
       <Box sx={{ p: 2 }}>
         <TablePagination
@@ -973,12 +642,12 @@ export default function UmbrellaTable() {
           }}
         />
       </Box>
+
       <DeleteConfirmDialog
         open={deleteTarget !== null}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
       />
-
       <TableToast
         open={toast.open}
         message={toast.message}
