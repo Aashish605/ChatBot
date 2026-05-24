@@ -102,6 +102,9 @@ import { getKnowledgeBaseData } from "data/react-table";
 import { TableDataProps } from "types/table";
 import { updateKnowledgeBaseRow } from "api/knowledgeBaseApi";
 import { deleteKnowledgeBaseRow } from "api/knowledgeBaseApi";
+import DeleteConfirmDialog from "components/third-party/react-table/DeleteConfirmDialog";
+import TableToast from "components/third-party/react-table/TableToast";
+import { useTableToast } from "components/third-party/react-table/useTableToast";
 
 import {
   arrayToInput,
@@ -532,6 +535,9 @@ export default function UmbrellaTable() {
 
   const [data, setData] = useState<TableDataProps[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast, showToast, handleToastClose } = useTableToast();
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -569,7 +575,7 @@ export default function UmbrellaTable() {
     ),
   );
 
-  const [categoryFilter, setCategoryFilter] = useState("");
+  // const [categoryFilter, setCategoryFilter] = useState("");
 
   const categories = useMemo(
     () => [...new Set(data.map((row) => row.category))].sort(),
@@ -580,6 +586,20 @@ export default function UmbrellaTable() {
     if (!categoryFilter) return data;
     return data.filter((row) => row.category === categoryFilter);
   }, [categoryFilter, data]);
+
+  const handleConfirmDelete = async () => {
+    if (deleteTarget === null) return;
+    try {
+      await deleteKnowledgeBaseRow(deleteTarget);
+      setData((prev) => prev.filter((item) => item.id !== deleteTarget));
+      showToast("Row deleted successfully", "success");
+    } catch (err) {
+      console.error("Failed to delete row", err);
+      showToast("Failed to delete row", "error");
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
 
   const table = useReactTable({
     data: filteredData,
@@ -820,15 +840,8 @@ export default function UmbrellaTable() {
                           <RowEditProvider
                             row={row}
                             hiddenColumnIds={HIDDEN_BY_DEFAULT_COLUMNS}
-                            onDelete={async (id) => {
-                              try {
-                                await deleteKnowledgeBaseRow(id); // your supabase delete function
-                                setData((prev) =>
-                                  prev.filter((item) => item.id !== id),
-                                );
-                              } catch (err) {
-                                console.error("Failed to delete row", err);
-                              }
+                            onDelete={(id) => {
+                              setDeleteTarget(id);
                             }}
                             onSave={async (updatedData) => {
                               try {
@@ -885,8 +898,13 @@ export default function UmbrellaTable() {
                                       : item,
                                   ),
                                 );
+                                showToast(
+                                  "Row updated successfully",
+                                  "success",
+                                );
                               } catch (err) {
                                 console.error("Failed to update row", err);
+                                showToast("Failed to update row", "error");
                               }
                             }}
                           >
@@ -955,6 +973,18 @@ export default function UmbrellaTable() {
           }}
         />
       </Box>
+      <DeleteConfirmDialog
+        open={deleteTarget !== null}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+      />
+
+      <TableToast
+        open={toast.open}
+        message={toast.message}
+        severity={toast.severity}
+        onClose={handleToastClose}
+      />
     </MainCard>
   );
 }
