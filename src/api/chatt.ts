@@ -211,25 +211,43 @@ export async function assignAgent(
     await analytic_event(getuserID());
   }
 
-  const { data: agent } = await supabase
+  const { data: agent, error: agentError } = await supabase
     .from("support_agents")
     .select("*")
     .eq("status", "active")
     .limit(1);
 
+  if (agentError) {
+    console.error("Error fetching active agent:", agentError);
+    return "Error fetching agent";
+  }
+
   if (!agent?.length) return "No agent available";
 
   const agent_id = agent[0].id;
 
-  await supabase
+  const { error: sessionError } = await supabase
     .from("chat_sessions")
     .update({ assigned_agent_id: agent_id })
     .eq("id", session_id);
 
-  await supabase
+  if (sessionError) {
+    console.error("Error updating chat session:", sessionError);
+    return "Error assigning session";
+  }
+
+  const { error: agentUpdateError, data: updateData } = await supabase
     .from("support_agents")
     .update({ status: "busy" })
-    .eq("id", agent_id);
+    .eq("id", agent_id)
+    .select();
+
+  if (agentUpdateError) {
+    console.error("Error updating agent status to busy:", agentUpdateError);
+    return "Error updating agent status";
+  }
+
+  console.log("Agent status updated successfully:", updateData);
 
   return "Agent assigned";
 }
