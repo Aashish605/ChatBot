@@ -26,8 +26,6 @@ import { useChat } from "hooks/usechatt";
 export default function ChatCard() {
   const { messages, loading, sendMessage } = useChat();
 
-  console.log("messages from component", messages);
-
   const [inputValue, setInputValue] = useState("");
 
   const messageEndRef = useRef<HTMLDivElement | null>(null);
