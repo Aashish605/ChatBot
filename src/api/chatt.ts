@@ -3,9 +3,7 @@ import { openai } from "./openai";
 import { supabase } from "./supabase";
 import { useAuthStore } from "store/authStore";
 
-// =========================
 // USER ID
-// =========================
 export const getuserID = () => {
   const userID = useAuthStore.getState().user?.id;
   if (!userID) {
@@ -15,7 +13,6 @@ export const getuserID = () => {
   return userID;
 };
 
-// =========================
 // USER NAME EXTRACTION
 // =========================
 export const checkUserNameFromMessage = async (
@@ -45,12 +42,10 @@ export const checkUserNameFromMessage = async (
   return data.name ?? null;
 };
 
-// =========================
 // SESSION HANDLER (optimized)
-// =========================
 let sessionPromise: Promise<{ id: string; isNew: boolean }> | null = null;
-let cachedSessionId: string | null = null;  // Avoid DB queries on every message
-let nameCheckDone = false;                  // Run extraction only once per load
+let cachedSessionId: string | null = null;  
+let nameCheckDone = false;                 
 
 export const chatSession = async (message?: string) => {
   // Return cached session immediately — no DB round-trip, no new sessions
@@ -122,9 +117,7 @@ export const chatSession = async (message?: string) => {
   return sessionPromise;
 };
 
-// =========================
 // MESSAGE INSERT
-// =========================
 export const chatMessage = async (
   session_id: string,
   message: string,
@@ -154,9 +147,7 @@ export const chatMessage = async (
   return data;
 };
 
-// =========================
 // AI TRAINING LOG (refactored)
-// =========================
 export const ai_training_log = async (
   session_id: string,
   chatMessage_id: string | number,
@@ -170,9 +161,7 @@ export const ai_training_log = async (
   if (error) console.error("AI training log error:", error);
 };
 
-// =========================
 // ANALYTICS
-// =========================
 export const analytic_event = async (user_id: string | null) => {
   if (!user_id) return;
 
@@ -182,9 +171,7 @@ export const analytic_event = async (user_id: string | null) => {
   });
 };
 
-// =========================
 // MODERATION (refactored)
-// =========================
 export const moderation = async (
   session_id: string,
   message: string,
@@ -199,9 +186,7 @@ export const moderation = async (
   if (error) console.error("Moderation error:", error);
 };
 
-// =========================
 // AGENT ASSIGNMENT (refactored)
-// =========================
 export async function assignAgent(
   session_id: string,
   chatMessage_id?: string | number,
@@ -252,9 +237,7 @@ export async function assignAgent(
   return "Agent assigned";
 }
 
-// =========================
 // MAIN HANDLER (RAG FLOW)
-// =========================
 export const handleSubmit = async (message: string) => {
   const sender_id = getuserID();
   const { id: session_id } = await chatSession(message);
@@ -342,9 +325,7 @@ export const handleSubmit = async (message: string) => {
   return [answer, chatMessage_id];
 };
 
-// =========================
 // SEND MESSAGE (ENTRY POINT)
-// =========================
 export async function sendChatMessage({ question }: { question: string }) {
   const sender_id = getuserID();
 
