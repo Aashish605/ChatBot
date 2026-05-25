@@ -1,21 +1,46 @@
+// User clicks Copy icon (EditRow.tsx)
+//   → onDuplicate(row.original) fires
+//     → handleDuplicate(row) in useKnowledgeBaseTable.ts
+//       → duplicateKnowledgeBaseRow(row) in knowledgeBaseApi.ts
+//         → strips id from row
+//         → appends "(Copy)" to title
+//         → INSERT into Supabase
+//           → returns new row with new id
+//       → splice new row into local state after original
+//         → table re-renders with duplicate below original
+//           → showToast("Row duplicated successfully")
+
+
+
 import { ReactNode, createContext, useContext, useState } from "react";
 
 import { useColorScheme, useTheme } from "@mui/material/styles";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import Grid from "@mui/material/Grid";
-import IconButton from "@mui/material/IconButton";
-import MenuItem from "@mui/material/MenuItem";
-import OutlinedInput from "@mui/material/OutlinedInput";
-import Select from "@mui/material/Select";
-import Slider from "@mui/material/Slider";
-import Stack from "@mui/material/Stack";
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
-import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
+
+import {
+  Box,
+  Button,
+  Chip,
+  Grid,
+  IconButton,
+  MenuItem,
+  OutlinedInput,
+  Select,
+  Slider,
+  Stack,
+  TableCell,
+  TableRow,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+
+import {
+  CloseOutlined,
+  DeleteOutlined,
+  EditTwoTone,
+  SendOutlined,
+  CopyOutlined,
+} from "@ant-design/icons";
 
 import { UniqueIdentifier } from "@dnd-kit/core";
 import { useFormik, FormikProps } from "formik";
@@ -31,11 +56,6 @@ import { getImageUrl, ImagePath } from "utils/getImageUrl";
 
 import { KnowledgeBaseStep, TableDataProps } from "types/table";
 
-import CloseOutlined from "@ant-design/icons/CloseOutlined";
-import DeleteOutlined from "@ant-design/icons/DeleteOutlined";
-import EditTwoTone from "@ant-design/icons/EditTwoTone";
-import SendOutlined from "@ant-design/icons/SendOutlined";
-
 import { arrayToInput } from "utils/knowledgeBaseTransform"; // add this import
 
 const ARRAY_FIELDS = ["tags", "keywords", "common_user_phrases"];
@@ -49,10 +69,10 @@ interface EditRowProps<TData> {
 interface RowEditProviderProps<TData> {
   row: Row<TData>;
   onSave: (updatedData: Record<string, unknown>) => void;
-  onDelete: (id:number) => void;
+  onDelete: (id: number) => void;
+  onDuplicate: (row: TableDataProps) => void;
   hiddenColumnIds?: string[];
   children: ReactNode;
-  
 }
 
 interface EditRowCellsProps {
@@ -104,7 +124,8 @@ type RowEditContextValue = {
   handleEditClick: () => void;
   handleCancelClick: () => void;
   handleEditDataChange: (columnId: string, value: unknown) => void;
-  onDelete:(id:number)=>void;
+  onDelete: (id: number) => void;
+  onDuplicate: (row: TableDataProps) => void;
 };
 
 const RowEditContext = createContext<RowEditContextValue | null>(null);
@@ -450,6 +471,7 @@ export const RowEditProvider = <TData,>({
   row,
   onSave,
   onDelete,
+  onDuplicate,
   hiddenColumnIds = [],
   children,
 }: RowEditProviderProps<TData>) => {
@@ -497,6 +519,7 @@ export const RowEditProvider = <TData,>({
         handleCancelClick,
         handleEditDataChange,
         onDelete,
+        onDuplicate,
       }}
     >
       {children}
@@ -514,7 +537,8 @@ export const EditRowCells = ({ groupedColumns }: EditRowCellsProps) => {
     handleEditClick,
     handleCancelClick,
     handleEditDataChange,
-    onDelete
+    onDelete,
+    onDuplicate,
   } = useRowEdit();
   const { values, errors, handleChange } = formik;
 
@@ -578,6 +602,15 @@ export const EditRowCells = ({ groupedColumns }: EditRowCellsProps) => {
                             : "",
                         ]}
                       />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Tooltip title="Duplicate">
+                    <IconButton
+                      color="info"
+                      onClick={() => onDuplicate(row.original)}
+                    >
+                      <CopyOutlined />
                     </IconButton>
                   </Tooltip>
 

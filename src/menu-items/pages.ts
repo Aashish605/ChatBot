@@ -56,9 +56,9 @@ const pages: NavItemType = {
     // },
     {
       id: 'contact-us',
-      title: 'form',
+      title: 'Admin Dashboard',
       type: 'item',
-      url: '/form',
+      url: '/table',
       icon: icons.RocketOutlined,
       target: false
     }
