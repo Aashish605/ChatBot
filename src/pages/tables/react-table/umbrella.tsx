@@ -83,7 +83,7 @@ import DraggableRow from "components/third-party/react-table/DraggableRow";
 import DeleteConfirmDialog from "components/third-party/react-table/DeleteConfirmDialog";
 import TableToast from "components/third-party/react-table/TableToast";
 
-import { useKnowledgeBase } from "hooks/useKnowledgeBaseTable";
+import { useKnowledgeBaseTable } from "hooks/useKnowledgeBaseTable";
 import { TableDataProps } from "types/table";
 
 import PlusOutlined from "@ant-design/icons/PlusOutlined";
@@ -143,9 +143,10 @@ export default function UmbrellaTable() {
     handleConfirmDelete,
     handleSave,
     handleSwapPriority,
+    handleDuplicate,
     toast,
     handleToastClose,
-  } = useKnowledgeBase();
+  } = useKnowledgeBaseTable();
 
   const columns = useMemo<ColumnDef<TableDataProps, unknown>[]>(
     () => [
@@ -574,6 +575,7 @@ export default function UmbrellaTable() {
                             onSave={(updatedData) =>
                               handleSave(row.original.id, updatedData)
                             }
+                            onDuplicate={handleDuplicate}
                           >
                             <DraggableRow
                               row={row}

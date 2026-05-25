@@ -5,6 +5,7 @@ import {
   updateKnowledgeBaseRow,
   deleteKnowledgeBaseRow,
   swapRowPriorities,
+  duplicateKnowledgeBaseRow, // ← add this
 } from "api/knowledgeBaseApi";
 import { useTableToast } from "components/third-party/react-table/useTableToast";
 import {
@@ -13,7 +14,7 @@ import {
 } from "utils/knowledgeBaseTransform";
 import { TableDataProps } from "types/table";
 
-export function useKnowledgeBase() {
+export function useKnowledgeBaseTable() {
   const [data, setData] = useState<TableDataProps[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
@@ -98,9 +99,6 @@ export function useKnowledgeBase() {
         Object.entries(payload).filter(([_, value]) => value !== undefined),
       );
 
-      console.log("Row id being updated:", rowId);
-      console.log("Clean payload:", JSON.stringify(cleanedPayload, null, 2));
-
       const savedRow = await updateKnowledgeBaseRow(rowId, cleanedPayload);
 
       setData((prev) =>
@@ -137,15 +135,31 @@ export function useKnowledgeBase() {
     setData(updated);
 
     try {
-      await swapRowPriorities(
-        rowA.id, rowA.priority,
-        rowB.id, rowB.priority,
-      );
+      await swapRowPriorities(rowA.id, rowA.priority, rowB.id, rowB.priority);
       showToast("Priority swapped successfully", "success");
     } catch (err) {
       console.error("Failed to swap priorities", err);
       showToast("Failed to swap priorities", "error");
       setData(data); // rollback
+    }
+  };
+
+  // ── Duplicate ──────────────────────────────────────────────
+  const handleDuplicate = async (row: TableDataProps) => {
+    try {
+      const duplicated = await duplicateKnowledgeBaseRow(row);
+
+      setData((prev) => {
+        const insertIndex = prev.findIndex((item) => item.id === row.id) + 1;
+        const result = [...prev];
+        result.splice(insertIndex, 0, duplicated);
+        return result;
+      });
+
+      showToast("Row duplicated successfully", "success");
+    } catch (err) {
+      console.error("Failed to duplicate row", err);
+      showToast("Failed to duplicate row", "error");
     }
   };
 
@@ -162,6 +176,7 @@ export function useKnowledgeBase() {
     handleConfirmDelete,
     handleSave,
     handleSwapPriority,
+    handleDuplicate, // ← added
     toast,
     handleToastClose,
   };

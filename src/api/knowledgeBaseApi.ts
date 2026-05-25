@@ -1,3 +1,4 @@
+import { log } from "node:console";
 import { supabase } from "./supabase";
 import { TableDataProps } from "types/table";
 
@@ -51,4 +52,26 @@ export async function swapRowPriorities(
 
   if (resultA.error) throw resultA.error;
   if (resultB.error) throw resultB.error;
+}
+
+export async function duplicateKnowledgeBaseRow(
+  originalRow: Partial<TableDataProps>,
+) {
+  const { id, ...rowWithoutId } = originalRow as TableDataProps;
+  const { data, error } = await supabase
+    .from("knowledge_base")
+    .insert({
+      ...rowWithoutId,
+      title: `${rowWithoutId} (Copy)`,
+    })
+    .select();
+
+  if (error) {
+    console.error("Error duplicating row", error);
+    throw error;
+  }
+  if (!data || data.length == 0) {
+    throw new Error("Duplicate failed: no row returned");
+  }
+  return data[0];
 }

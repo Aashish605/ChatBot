@@ -4,6 +4,7 @@ import { saveKnowledgeBase } from "api/knowledgeBase";
 
 import { KnowledgeBaseFormData } from "types/knowledgeBase";
 
+
 export function useKnowledgeBase() {
   const [loading, setLoading] = useState(false);
 
@@ -28,3 +29,5 @@ export function useKnowledgeBase() {
     submitKnowledgeBase,
   };
 }
+
+
